@@ -3,6 +3,10 @@ import { cp, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 
 const watch = process.argv.includes('--watch');
+// Chrome Web Store review explicitly asks for "code as authored" — heavy
+// minification slows review down and can get a submission flagged. The store
+// build therefore ships readable output; only local dev builds minify.
+const store = process.argv.includes('--store');
 const outdir = 'dist';
 
 /** Each entry becomes its own bundle — MV3 content scripts cannot share chunks. */
@@ -35,7 +39,7 @@ const ctx = await esbuild.context({
   format: 'iife',
   target: 'chrome120',
   sourcemap: watch ? 'inline' : false,
-  minify: !watch,
+  minify: !watch && !store,
   logLevel: 'info',
   alias: { '@': path.resolve('src') },
   loader: { '.css': 'text' },
@@ -46,7 +50,11 @@ const ctx = await esbuild.context({
         build.onEnd(async (result) => {
           if (result.errors.length === 0) {
             await copyStatic();
-            console.log(`[zelector] dist/ ready — chrome://extensions → Load unpacked`);
+            console.log(
+              store
+                ? '[zelector] dist/ ready (unminified, for Chrome Web Store review)'
+                : '[zelector] dist/ ready — chrome://extensions → Load unpacked',
+            );
           }
         });
       },

@@ -18,7 +18,9 @@
     "dev": "node build.mjs --watch",
     "build": "node build.mjs",
     "typecheck": "tsc --noEmit",
-    "test:robot": "node scripts/test-robot.mjs"
+    "test:robot": "node scripts/test-robot.mjs",
+    "build:store": "node build.mjs --store",
+    "zip": "npm run build:store && node scripts/zip.mjs"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268",

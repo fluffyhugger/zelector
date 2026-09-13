@@ -6,7 +6,7 @@
   "minimum_chrome_version": "120",
   "homepage_url": "https://github.com/fluffyhugger/zelector",
 
-  "permissions": ["activeTab", "scripting", "storage", "clipboardWrite"],
+  "permissions": ["activeTab", "storage", "clipboardWrite"],
   "host_permissions": ["<all_urls>"],
 
   "action": {
