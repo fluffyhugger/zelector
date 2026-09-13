@@ -5,6 +5,7 @@
  */
 import type { PickResult, SelectorCandidate } from './types';
 import { toRobotCode, toRobotLocator } from './robot';
+import { javaMethod, toSeleniumLocator } from './selenium';
 
 export type ExportTarget =
   | 'robot' | 'robot-locator'
@@ -58,13 +59,25 @@ export function toCode(result: PickResult, target: ExportTarget): string {
       return `${shadowNote.replace('//', '#')}target = ${expr}\ntarget.click()`;
     }
 
-    case 'selenium-py':
-      if (!cssBest) return '# no CSS-expressible selector — this element needs a role/text locator';
-      return `${shadowNote.replace('//', '#')}target = driver.find_element(By.CSS_SELECTOR, ${str(cssBest.value)})\ntarget.click()`;
+    case 'selenium-py': {
+      const by = toSeleniumLocator(result);
+      return [
+        shadowNote.replace('//', '#'),
+        `# ${by.note}`,
+        `target = driver.find_element(By.${by.strategy}, ${str(by.value)})`,
+        'target.click()',
+      ].filter(Boolean).join('\n');
+    }
 
-    case 'selenium-java':
-      if (!cssBest) return '// no CSS-expressible selector';
-      return `${shadowNote}WebElement target = driver.findElement(By.cssSelector(${str(cssBest.value, '"')}));\ntarget.click();`;
+    case 'selenium-java': {
+      const by = toSeleniumLocator(result);
+      return [
+        shadowNote,
+        `// ${by.note}`,
+        `WebElement target = driver.findElement(By.${javaMethod(by.strategy)}(${str(by.value, '"')}));`,
+        'target.click();',
+      ].filter(Boolean).join('\n');
+    }
 
     case 'puppeteer':
       if (!cssBest) return '// no CSS-expressible selector';

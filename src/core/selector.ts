@@ -55,6 +55,16 @@ export function generateCandidates(el: Element): SelectorCandidate[] {
       penalty: unique ? 0 : 10,
       notes: [`purpose-built test hook (${attr})`, unique ? 'unique on page' : 'not unique — tag added'],
     });
+    // Playwright reads whichever attribute testIdAttribute names — data-testid
+    // out of the box. Offer getByTestId() only when it will work unconfigured,
+    // and say so when it needs a line in playwright.config.
+    push({
+      kind: 'testid', engine: 'playwright', value: `getByTestId(${quoteJs(value)})`,
+      penalty: attr === 'data-testid' ? 1 : 8,
+      notes: attr === 'data-testid'
+        ? ['Playwright reads data-testid by default']
+        : [`needs testIdAttribute: '${attr}' in playwright.config`],
+    });
     break; // one test hook is enough
   }
 
