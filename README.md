@@ -1,5 +1,7 @@
 # Zelector
 
+**English** · [ภาษาไทย](README.th.md)
+
 > The selector inspector DevTools should have been.
 
 Pick any element on a page — including inside **closed** shadow roots — and get
@@ -8,16 +10,28 @@ next deploy. Then export to Playwright, Selenium, Puppeteer, Cypress or raw CSS.
 
 ## Why
 
-Chrome DevTools' "Copy selector" hands you `div > div:nth-child(3) > button` and
-walks away. It also cannot show you:
+Chrome's element inspector is bad at this job, and anyone who writes automation
+already knows it.
 
-| | DevTools | Zelector |
+Right-click → **Copy selector** gives you `div > div:nth-child(3) > button`, then
+walks away. That selector dies the moment somebody wraps the button in a flex
+container. DevTools knows nothing about which selectors last and which don't —
+it just hands you the first thing it can compute and lets your test suite find
+out in CI two weeks later.
+
+And that is the case where the element is even reachable. DevTools gives up on:
+
+| | Chrome DevTools | Zelector |
 |---|---|---|
-| Hover menus / tooltips | close the moment you reach for DevTools | **Freeze DOM** keeps them open |
-| `#shadow-root (closed)` | opaque | walked, via an `attachShadow` hook installed at `document_start` |
-| Selector durability | no opinion | 0–100 score with the reasons shown |
-| Generated classes (`css-1x9d8f`, `_ngcontent-…`) | offered as if they were stable | detected and penalised |
-| JSON field → DOM node | two panels, manual | (v0.3) one click |
+| Hover menus, tooltips, popovers | close the instant you reach for DevTools — good luck | **Freeze DOM** holds them open while you inspect |
+| `#shadow-root (closed)` | an opaque dead end | walked, via an `attachShadow` hook installed at `document_start` |
+| Selector durability | no opinion whatsoever | 0–100 score, with the reason for every point lost |
+| Generated classes (`css-1x9d8f`, `Button_root__3kD9a`, `_ngcontent-…`) | offered as though they were stable | recognised as build output and penalised |
+| Virtualized lists | rows unmount as you scroll; the element vanishes mid-inspection | (v0.2) snapshot keeps the row |
+| JSON field → the DOM node showing it | two panels and a lot of squinting | (v0.3) one click |
+
+None of this is exotic. It is a normal Tuesday for anyone writing Playwright or
+Robot Framework tests, and the tool that ships in the browser does not help.
 
 ## Install (development)
 
@@ -95,6 +109,25 @@ panel.js        DevTools panel
 All DOM logic lives in the MAIN world because that is the only place the closed
 shadow roots are reachable. The isolated script exists solely to reach
 `chrome.runtime`.
+
+### Why there is no innerHTML anywhere
+
+Pages sending `require-trusted-types-for 'script'` — Chrome's New Tab, most
+Google properties, GitHub, plenty of banking apps — reject every sink that takes
+an HTML string. Measured on a page actually serving that header:
+
+```
+innerHTML                     TypeError: requires 'TrustedHTML'
+insertAdjacentHTML            TypeError: requires 'TrustedHTML'
+DOMParser.parseFromString     TypeError: requires 'TrustedHTML'
+createElement + textContent   ok
+<style>.textContent           ok, stylesheet applies
+adoptedStyleSheets            ok, stylesheet applies
+```
+
+So Zelector builds every node by hand (`src/main-world/dom-build.ts`). Pleasant
+side effect: nothing needs HTML-escaping any more, because `textContent` never
+parses markup in the first place.
 
 ## Scoring
 
