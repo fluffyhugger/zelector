@@ -1,0 +1,28 @@
+{
+  "name": "zelector",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The selector inspector DevTools should have been.",
+  "author": "Sirapob Wuth (https://github.com/fluffyhugger)",
+  "license": "MIT",
+  "homepage": "https://github.com/fluffyhugger/zelector#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fluffyhugger/zelector.git"
+  },
+  "bugs": {
+    "url": "https://github.com/fluffyhugger/zelector/issues"
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "node build.mjs --watch",
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test:robot": "node scripts/test-robot.mjs"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.268",
+    "esbuild": "^0.23.0",
+    "typescript": "^5.5.4"
+  }
+}

@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Zelector</title>
+    <style>
+      :root { color-scheme: dark light; }
+      body {
+        margin: 0;
+        font: 13px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
+        background: #16142a; color: #e9e7f5;
+      }
+      header {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 14px; border-bottom: 1px solid #2f2a4d;
+      }
+      header h1 { font-size: 13px; margin: 0; letter-spacing: .02em; }
+      header .dot { width: 8px; height: 8px; border-radius: 50%; background: #7c5cff; }
+      button.pick {
+        margin-left: auto; font: 600 12px inherit; background: #7c5cff; color: #fff;
+        border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer;
+      }
+      .empty { padding: 40px 20px; text-align: center; color: #7d7799; }
+      .empty kbd {
+        background: #2b2550; padding: 2px 6px; border-radius: 4px;
+        font: inherit; color: #c4b5fd;
+      }
+      ul { list-style: none; margin: 0; padding: 8px; }
+      li { padding: 10px; border-radius: 8px; background: #1c1936; margin-bottom: 6px; }
+      li code { font: 12px ui-monospace, Menlo, monospace; color: #c4b5fd; word-break: break-all; }
+      li .head { display: flex; gap: 8px; align-items: center; margin-bottom: 5px; }
+      li .score { font: 700 11px ui-monospace, Menlo, monospace; color: #86efac; }
+      li .tag { font: 600 11px ui-monospace, Menlo, monospace; color: #8f89ad; }
+      li time { margin-left: auto; font-size: 11px; color: #56507a; }
+      footer {
+        padding: 10px 14px; border-top: 1px solid #2f2a4d;
+        font-size: 11px; color: #56507a; display: flex; gap: 6px;
+      }
+      footer a { color: #7d76a8; text-decoration: none; }
+      footer a:hover { color: #c4b5fd; text-decoration: underline; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="dot"></span>
+      <h1>Zelector</h1>
+      <button class="pick" id="pick">Pick element</button>
+    </header>
+    <div id="root">
+      <div class="empty">
+        No picks yet.<br />Press <kbd>Alt</kbd>+<kbd>Z</kbd> on the page, or hit <em>Pick element</em>.
+      </div>
+    </div>
+    <footer>
+      <span>Zelector</span>
+      <span>·</span>
+      <a href="https://github.com/fluffyhugger/zelector" target="_blank" rel="noreferrer">Built by Sirapob Wuth</a>
+    </footer>
+    <script src="panel.js"></script>
+  </body>
+</html>
