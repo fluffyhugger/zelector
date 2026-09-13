@@ -1,7 +1,5 @@
 # Zelector
 
-**English** · [ภาษาไทย](README.th.md)
-
 > The selector inspector DevTools should have been.
 
 Pick any element on a page — including inside **closed** shadow roots — and get
