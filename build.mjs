@@ -16,12 +16,14 @@ const entryPoints = {
   background: 'src/background/service-worker.ts',
   devtools: 'src/devtools/devtools.ts',
   panel: 'src/devtools/panel.ts',
+  popup: 'src/popup/popup.ts',
 };
 
 const staticFiles = [
   ['manifest.json', 'manifest.json'],
   ['src/devtools/devtools.html', 'devtools.html'],
   ['src/devtools/panel.html', 'panel.html'],
+  ['src/popup/popup.html', 'popup.html'],
   ['icons', 'icons'],
 ];
 

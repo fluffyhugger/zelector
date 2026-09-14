@@ -30,9 +30,9 @@ chrome.commands.onCommand.addListener((command) => {
   if (command === 'toggle-recorder') void sendToActiveTab({ type: 'zelector/toggle-recorder' });
 });
 
-chrome.action.onClicked.addListener(() => {
-  void sendToActiveTab({ type: 'zelector/toggle-picker' });
-});
+// No chrome.action.onClicked handler: the toolbar icon opens popup.html, which
+// dispatches to the tab itself. A listener here would never fire.
+
 /** Most recent picks, so a panel opened after the fact still has history. */
 const recent: PageMessage[] = [];
 

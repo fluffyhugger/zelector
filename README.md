@@ -21,7 +21,7 @@ as if they were stable.
 
 ## Record a flow
 
-`⌥⇧R` starts recording. Use the page the way you normally would — clicks, typing
+Click the toolbar icon and pick **Record a flow**, or press `⌥⇧R`. Use the page the way you normally would — clicks, typing
 and dropdowns are captured, keystrokes collapse into one `Input Text`, and a
 click on a `<span>` inside a button records the button.
 
@@ -79,9 +79,11 @@ npm run dev        # rebuilds dist/ on change
 | `Esc` | `Esc` | cancel |
 
 Matched on `event.code`, so keyboard layout doesn't matter. If a shortcut does
-nothing, another extension has claimed it — rebind at `chrome://extensions/shortcuts`.
-The toolbar icon always works. There's also a Zelector tab in DevTools with a history
-of picks.
+nothing, something else holds the keys — on Windows `Alt+Z` is the NVIDIA overlay,
+which swallows it before Chrome sees it. Rebind at `chrome://extensions/shortcuts`;
+the popup marks any shortcut Chrome could not assign, and its buttons always work.
+
+There's also a Zelector tab in DevTools with a history of picks.
 
 ## Robot Framework output
 
