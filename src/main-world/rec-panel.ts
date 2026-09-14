@@ -45,16 +45,26 @@ export class RecPanel {
   private card: HTMLDivElement | null = null;
   private recording: Recording | null = null;
   private showCode = false;
+  /**
+   * Closed by hand. Every recorder change calls show(), so without this any
+   * stray emit after the close — a typing buffer flushing, an observer
+   * settling — puts the panel straight back on screen.
+   */
+  private dismissed = false;
 
   constructor(private readonly callbacks: RecPanelCallbacks) {}
 
   show(recording: Recording): void {
+    // A new recording is always worth showing; nothing else reopens it.
+    if (this.dismissed && !recording.active) return;
+    this.dismissed = false;
     this.recording = recording;
     this.mount();
     this.render();
   }
 
   hide(): void {
+    this.dismissed = true;
     if (this.host) unregisterOwnHost(this.host);
     this.host?.remove();
     this.host = null;

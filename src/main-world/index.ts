@@ -47,11 +47,15 @@ const recorder = new Recorder({
 const panel = new RecPanel({
   onStop() {
     if (recorder.isRecording) {
-      recorder.stop();
+      // Not recorder.stop(): the frames below are recording too, and only
+      // setRecording tells them.
+      setRecording(false);
       return; // keep the panel up so the suite can still be copied
     }
-    panel.hide();
+    // clear() before hide(), because clearing emits and an emit re-mounts the
+    // panel — hiding first meant it came straight back.
     recorder.clear();
+    panel.hide();
   },
   onAddAssertion() {
     hud.hide();
