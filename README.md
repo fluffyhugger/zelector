@@ -1,100 +1,67 @@
 # Zelector
 
-> The selector inspector DevTools should have been.
-
-Pick any element on a page — including inside **closed** shadow roots — and get
-every reasonable selector for it, each scored on how likely it is to survive the
-next deploy. Then export to Playwright, Selenium, Puppeteer, Cypress or raw CSS.
+Pick any element on a page, including inside closed shadow roots, and get every
+reasonable selector for it, scored on how likely it is to survive the next deploy.
+Exports to Playwright, Selenium, Puppeteer, Cypress, Robot Framework, CSS and XPath.
 
 ## Why
 
-Chrome's element inspector is bad at this job, and anyone who writes automation
-already knows it.
+Right-click, Copy selector, and Chrome hands you `div > div:nth-child(3) > button`.
+That dies the moment somebody wraps the button in a flex container. DevTools has no
+opinion on which selectors last, and it can't help at all when the element is behind
+a hover menu that closes the second you reach for DevTools, or inside
+`#shadow-root (closed)`.
 
-Right-click → **Copy selector** gives you `div > div:nth-child(3) > button`, then
-walks away. That selector dies the moment somebody wraps the button in a flex
-container. DevTools knows nothing about which selectors last and which don't —
-it just hands you the first thing it can compute and lets your test suite find
-out in CI two weeks later.
+Zelector freezes the DOM to hold those menus open, walks closed shadow roots through
+an `attachShadow` hook installed at `document_start`, and penalises generated class
+names (`css-1x9d8f`, `Button_root__3kD9a`, `_ngcontent-…`) instead of offering them
+as if they were stable.
 
-And that is the case where the element is even reachable. DevTools gives up on:
-
-| | Chrome DevTools | Zelector |
-|---|---|---|
-| Hover menus, tooltips, popovers | close the instant you reach for DevTools — good luck | **Freeze DOM** holds them open while you inspect |
-| `#shadow-root (closed)` | an opaque dead end | walked, via an `attachShadow` hook installed at `document_start` |
-| Selector durability | no opinion whatsoever | 0–100 score, with the reason for every point lost |
-| Generated classes (`css-1x9d8f`, `Button_root__3kD9a`, `_ngcontent-…`) | offered as though they were stable | recognised as build output and penalised |
-| Virtualized lists | rows unmount as you scroll; the element vanishes mid-inspection | (v0.2) snapshot keeps the row |
-| JSON field → the DOM node showing it | two panels and a lot of squinting | (v0.3) one click |
-
-None of this is exotic. It is a normal Tuesday for anyone writing Playwright or
-Robot Framework tests, and the tool that ships in the browser does not help.
-
-## Install (development)
+## Install (dev)
 
 ```bash
 npm install
 npm run dev        # rebuilds dist/ on change
 ```
 
-Then: `chrome://extensions` → enable **Developer mode** → **Load unpacked** →
-select the `dist/` folder.
+`chrome://extensions` → Developer mode → Load unpacked → pick `dist/`.
 
-## Use
+## Shortcuts
 
-| macOS | Windows / Linux | Action |
+| macOS | Windows / Linux | |
 |---|---|---|
-| `⌥` `Z` | `Alt` `Z` | toggle the element picker |
-| `⌥` `⇧` `F` | `Alt` `Shift` `F` | freeze the DOM — hover menus stay open while you inspect |
-| `↑` `↓` | `↑` `↓` | walk the selection up/down the tree without moving the mouse |
+| `⌥` `Z` | `Alt` `Z` | toggle the picker |
+| `⌥` `⇧` `F` | `Alt` `Shift` `F` | freeze the DOM |
+| `↑` `↓` | `↑` `↓` | walk the selection up/down the tree |
 | `Esc` | `Esc` | cancel |
 
-On macOS `⌥` is the **Option** key. Shortcuts are matched on `event.code`, so they
-work regardless of keyboard layout — Option is a compose modifier on macOS and
-would otherwise report `Ω` instead of `z`.
+Matched on `event.code`, so keyboard layout doesn't matter. If a shortcut does
+nothing, another extension has claimed it — rebind at `chrome://extensions/shortcuts`.
+The toolbar icon always works. There's also a Zelector tab in DevTools with a history
+of picks.
 
-If a shortcut does nothing, another extension has claimed it: open
-`chrome://extensions/shortcuts` and rebind. Clicking the toolbar icon always works.
+## Robot Framework output
 
-A **Zelector** tab also appears in DevTools with a history of picks.
+Built against libdoc 6.9.0, so locators use the `strategy:value` prefix form (the
+`=` form collides with named arguments), `data-testid="x"` becomes `data:testid:x`,
+and the keyword follows the element — `Click Button` also matches on `value`,
+`Click Link` on `href` and link text, `Click Element` only knows `id` and `name`.
+`Select Radio Button` takes `(group_name, value)` rather than a locator.
 
-## Export targets
+SeleniumLibrary has no shadow-DOM strategy at all, so elements behind a shadow
+boundary export as a `dom:` expression with a warning comment instead of a `css:`
+locator that would silently never match.
 
-Robot Framework / SeleniumLibrary, Playwright (TS + Python), Selenium (Python + Java),
-Puppeteer, Cypress, raw CSS, XPath, JSON.
+Snippets are checked against the real parser — `npm run test:robot`.
 
-### Robot Framework notes
-
-The SeleniumLibrary output is built against **libdoc 6.9.0**, not from memory:
-
-- Locators use the preferred `strategy:value` prefix form, never `strategy=value` —
-  the latter collides with Robot's named-argument syntax.
-- `data-testid="x"` becomes `data:testid:x`; the `data` strategy strips the `data-`
-  prefix itself.
-- The action keyword follows the element: `Click Button` / `Click Link` /
-  `Input Password` / `Select From List By Label` / `Select Checkbox` / `Choose File`.
-  This matters — `Click Button` also matches on `value`, `Click Link` on `href` and
-  link text, while `Click Element` only knows `id` and `name`.
-- `Select Radio Button` is special-cased: its signature is `(group_name, value)`,
-  **not** a locator, so it renders the group's `name` and the button's `value`
-  instead of a locator variable.
-- **SeleniumLibrary has no shadow-DOM locator strategy** (grep the whole libdoc:
-  zero hits for "shadow"). Elements behind a shadow boundary therefore export as a
-  `dom:` expression with an explicit warning comment, rather than a `css:` locator
-  that would silently never match.
-
-Every generated snippet is checked against the real Robot Framework parser
-(`robot.api.get_model`) — see `npm run test:robot`.
-
-## How it is wired
+## How it's wired
 
 MV3 forbids `chrome.*` in the MAIN world and hides closed shadow roots from the
 isolated world, so the work is split:
 
 ```
 main-world.js   MAIN, document_start
-                ├─ hooks.ts    patches attachShadow / fetch / XHR before page scripts run
+                ├─ hooks.ts    patches attachShadow / fetch / XHR before page scripts
                 ├─ picker.ts   overlay, deep elementFromPoint, freeze
                 └─ hud.ts      result card (its own closed shadow root)
                       │ window.postMessage
@@ -104,51 +71,25 @@ background.js   commands, badge, pick history
 panel.js        DevTools panel
 ```
 
-All DOM logic lives in the MAIN world because that is the only place the closed
-shadow roots are reachable. The isolated script exists solely to reach
-`chrome.runtime`.
+All DOM logic lives in the MAIN world because that's the only place closed shadow
+roots are reachable. The isolated script exists solely to reach `chrome.runtime`.
 
-### Why there is no innerHTML anywhere
-
-Pages sending `require-trusted-types-for 'script'` — Chrome's New Tab, most
-Google properties, GitHub, plenty of banking apps — reject every sink that takes
-an HTML string. Measured on a page actually serving that header:
-
-```
-innerHTML                     TypeError: requires 'TrustedHTML'
-insertAdjacentHTML            TypeError: requires 'TrustedHTML'
-DOMParser.parseFromString     TypeError: requires 'TrustedHTML'
-createElement + textContent   ok
-<style>.textContent           ok, stylesheet applies
-adoptedStyleSheets            ok, stylesheet applies
-```
-
-So Zelector builds every node by hand (`src/main-world/dom-build.ts`). Pleasant
-side effect: nothing needs HTML-escaping any more, because `textContent` never
-parses markup in the first place.
+There's no `innerHTML` anywhere either: pages sending `require-trusted-types-for
+'script'` reject every sink that takes an HTML string, so nodes are built by hand in
+`src/main-world/dom-build.ts`.
 
 ## Scoring
 
-`src/core/volatility.ts` decides whether an identifier is durable. Three buckets:
-
-- **volatile** — hashed by a build tool (`css-*`, `sc-*`, CSS-modules, Angular
-  encapsulation, React `useId`, UUIDs, high-entropy strings). Heavily penalised.
-- **utility** — stable but meaningless for identity (Tailwind, layout classes).
-  Ignored when building class selectors.
-- **stable** — everything else.
-
-`src/core/selector.ts` then emits candidates in this order of preference:
-test attributes → `id` → `getByRole` → `getByLabel` / `name=` → `aria-label` →
-text → other semantic attributes → class combination → structural path.
+`src/core/volatility.ts` sorts identifiers into volatile (hashed by a build tool),
+utility (stable but meaningless, like Tailwind classes) and stable.
+`src/core/selector.ts` then emits candidates in order of preference: test attributes,
+`id`, `getByRole`, `getByLabel` / `name=`, `aria-label`, text, other semantic
+attributes, class combination, structural path.
 
 ## Roadmap
 
-- [x] **v0.1** picker, closed shadow DOM, freeze, scoring, code export
-- [ ] **v0.2** same-origin iframe traversal, virtualized-list row patterns, DOM snapshot freeze
-- [ ] **v0.3** click a JSON field in a captured response → JSONPath; auto-match DOM text ↔ API field
-- [ ] **v0.4** Page Map export (generated Page Object Model + TypeScript types from real responses)
-- [ ] **v0.5** user-editable export templates
+More coming soon.
 
 ---
 
-Built by **Sirapob Wuth** — [GitHub](https://github.com/fluffyhugger) · [LinkedIn](https://www.linkedin.com/in/sirapob/) · [MIT](LICENSE)
+Built by Sirapob Wuth — [GitHub](https://github.com/fluffyhugger) · [LinkedIn](https://www.linkedin.com/in/sirapob/) · [MIT](LICENSE)
