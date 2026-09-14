@@ -9,6 +9,12 @@
  * The come-and-go case is the valuable one. A spinner that appears after the
  * click and is gone by the time the window closes is, almost by definition, the
  * thing the next step needs to wait out.
+ *
+ * Which is exactly why the window has to close the instant the user acts again.
+ * A dropdown opens on click and closes when an option is picked; leave the
+ * window open across both and it looks identical to a spinner, and the step gets
+ * a Wait Until Element Is Not Visible on a menu that only ever opens. That wait
+ * can never pass. Anything after the next action is that action's business.
  */
 import type { PickResult } from '@/core/types';
 import { capturedResponses, type CapturedResponse } from './hooks';
@@ -48,11 +54,19 @@ function isVisible(el: Element): boolean {
   return style.visibility !== 'hidden' && style.display !== 'none' && style.opacity !== '0';
 }
 
+export interface Watch {
+  /** Close the window now and return what changed. Safe to call twice. */
+  settle(): PageChange;
+}
+
 /**
- * Watch the page until it settles. Resolves with everything that changed, so
- * the caller can pick a wait that describes the actual behaviour.
+ * Watch the page until it settles on its own — or until the caller settles it,
+ * which is what happens the moment the user performs the next action.
+ *
+ * `onQuiet` fires only for the former: the page went still by itself and the
+ * result is waiting for a step that has not been taken yet.
  */
-export function watchPageChange(): Promise<PageChange> {
+export function watchPageChange(onQuiet: (change: PageChange) => void): Watch {
   const startedAt = performance.now();
   const requestMark = capturedResponses.length;
   const startUrl = location.href;
@@ -62,79 +76,75 @@ export function watchPageChange(): Promise<PageChange> {
   /** Described at the moment they left, while their attributes were still readable. */
   const transient: PickResult[] = [];
 
-  return new Promise<PageChange>((resolve) => {
-    let quietTimer = 0;
-    let done = false;
+  let settled: PageChange | null = null;
+  let quietTimer = 0;
 
-    const consider = (node: Node): void => {
-      if (!(node instanceof Element) || isOwnNode(node)) return;
-      if (pending.size >= MAX_TRACKED) return;
-      if (!isVisible(node)) return;
-      pending.add(node);
-    };
+  const consider = (node: Node): void => {
+    if (!(node instanceof Element) || isOwnNode(node)) return;
+    if (pending.size >= MAX_TRACKED) return;
+    if (!isVisible(node)) return;
+    pending.add(node);
+  };
 
-    const retire = (node: Node): void => {
-      if (!(node instanceof Element)) return;
-      // Only elements we saw appear — a page tearing down its old view on
-      // navigation would otherwise flood this with everything it removed.
-      if (!pending.has(node)) return;
-      pending.delete(node);
-      if (transient.length < MAX_TRACKED) transient.push(describe(node));
-    };
+  const retire = (node: Node): void => {
+    if (!(node instanceof Element)) return;
+    // Only elements we saw appear — a page tearing down its old view on
+    // navigation would otherwise flood this with everything it removed.
+    if (!pending.has(node)) return;
+    pending.delete(node);
+    if (transient.length < MAX_TRACKED) transient.push(describe(node));
+  };
 
-    const observer = new MutationObserver((records) => {
-      for (const record of records) {
-        record.addedNodes.forEach(consider);
-        record.removedNodes.forEach(retire);
-        // An element hidden in place never leaves the tree, but it is gone as
-        // far as Wait Until Element Is Not Visible is concerned.
-        if (record.type === 'attributes' && record.target instanceof Element) {
-          if (pending.has(record.target) && !isVisible(record.target)) retire(record.target);
-        }
+  const observer = new MutationObserver((records) => {
+    for (const record of records) {
+      record.addedNodes.forEach(consider);
+      record.removedNodes.forEach(retire);
+      // An element hidden in place never leaves the tree, but it is gone as
+      // far as Wait Until Element Is Not Visible is concerned.
+      if (record.type === 'attributes' && record.target instanceof Element) {
+        if (pending.has(record.target) && !isVisible(record.target)) retire(record.target);
       }
-      restartQuietTimer();
-    });
-
-    const finish = (): void => {
-      if (done) return;
-      done = true;
-      clearTimeout(quietTimer);
-      clearTimeout(hardStop);
-      observer.disconnect();
-
-      const appeared = [...pending].filter(isVisible).map(describe);
-      const url = location.href !== startUrl ? location.href : undefined;
-      resolve({
-        appeared,
-        transient,
-        requests: capturedResponses.slice(requestMark),
-        ...(url ? { url } : {}),
-        elapsedMs: performance.now() - startedAt,
-      });
-    };
-
-    function restartQuietTimer(): void {
-      clearTimeout(quietTimer);
-      quietTimer = window.setTimeout(finish, QUIET_MS);
     }
-
-    const hardStop = window.setTimeout(finish, MAX_MS);
-
-    observer.observe(document.documentElement, {
-      childList: true,
-      subtree: true,
-      attributes: true,
-      attributeFilter: ['class', 'style', 'hidden', 'aria-hidden', 'aria-busy'],
-    });
     restartQuietTimer();
   });
+
+  function finish(quiet: boolean): PageChange {
+    if (settled) return settled;
+    clearTimeout(quietTimer);
+    clearTimeout(hardStop);
+    observer.disconnect();
+
+    const appeared = [...pending].filter(isVisible).map(describe);
+    const url = location.href !== startUrl ? location.href : undefined;
+    settled = {
+      appeared,
+      transient,
+      requests: capturedResponses.slice(requestMark),
+      ...(url ? { url } : {}),
+      elapsedMs: performance.now() - startedAt,
+    };
+    if (quiet) onQuiet(settled);
+    return settled;
+  }
+
+  function restartQuietTimer(): void {
+    clearTimeout(quietTimer);
+    quietTimer = window.setTimeout(() => finish(true), QUIET_MS);
+  }
+
+  const hardStop = window.setTimeout(() => finish(true), MAX_MS);
+
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['class', 'style', 'hidden', 'aria-hidden', 'aria-busy'],
+  });
+  restartQuietTimer();
+
+  return { settle: () => finish(false) };
 }
 
-/**
- * How long to allow, given how long it actually took. Three times the measured
- * time, floored at 10s — generous enough for a loaded CI box without turning
- * into the 60s default nobody ever tunes.
- */
 export function timeoutFor(change: PageChange): number {
   const slowest = change.requests.reduce((max, r) => Math.max(max, r.durationMs), 0);
   const observed = Math.max(slowest, change.elapsedMs);

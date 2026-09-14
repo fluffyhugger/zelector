@@ -16,7 +16,7 @@ import { toRobotLocator } from '@/core/robot';
 import type { RecordedStep, Recording, StepKind, WaitSpec } from '@/core/recording';
 import { deepElementFromPoint, describe } from './picker';
 import { isOwnNode } from './ignore';
-import { emptyChange, timeoutFor, watchPageChange, type PageChange } from './observer';
+import { emptyChange, timeoutFor, watchPageChange, type PageChange, type Watch } from './observer';
 
 /** How long a typing burst can pause before it is flushed as its own step. */
 const TYPING_IDLE_MS = 700;
@@ -50,6 +50,8 @@ export class Recorder {
   private typingTimer = 0;
   /** A settled page change waiting for the step it should inform. */
   private pending: { forIndex: number; change: PageChange } | null = null;
+  /** The window still open on the last action's aftermath. */
+  private watch: Watch | null = null;
 
   constructor(private readonly callbacks: RecorderCallbacks) {}
 
@@ -128,6 +130,8 @@ export class Recorder {
   stop(): void {
     if (!this.active) return;
     this.flushTyping();
+    this.watch?.settle();
+    this.watch = null;
     this.active = false;
     window.removeEventListener('click', this.onClick, true);
     window.removeEventListener('input', this.onInput, true);
@@ -139,6 +143,7 @@ export class Recorder {
   clear(): void {
     this.steps = [];
     this.pending = null;
+    this.watch = null;
     this.emit();
   }
 
@@ -208,6 +213,11 @@ export class Recorder {
     const el = resolveTarget(raw);
     this.flushTyping(el);
 
+    // Clicking into a field is not an action, it is aiming. The typing that
+    // follows is the step — and recording the click as well produced an
+    // Input Text with no value to type, right before the real one.
+    if (isTextEntry(el) || el instanceof HTMLSelectElement) return;
+
     const kind: StepKind = isToggle(el) ? 'check' : 'click';
     // A click on a checkbox also fires change; the change handler defers to this.
     this.push({ kind, target: describe(el) });
@@ -264,7 +274,14 @@ export class Recorder {
 
   private push(partial: { kind: StepKind; target: PickResult; value?: string; keyword?: string }): void {
     const index = this.steps.length;
-    const change = this.pending?.forIndex === index ? this.pending.change : null;
+    // Close the window on the previous action first. Whatever the page does
+    // from here belongs to this step, not the one before it.
+    const change = this.watch
+      ? this.watch.settle()
+      : this.pending?.forIndex === index
+        ? this.pending.change
+        : null;
+    this.watch = null;
     this.pending = null;
 
     const step: RecordedStep = {
@@ -285,20 +302,14 @@ export class Recorder {
   }
 
   /**
-   * Watch the page and hand the result to the step at `index` — the one the
-   * user has not performed yet. If they get there first, the step is already
-   * recorded with a provisional wait, so refine that instead.
+   * Watch the page on behalf of the step at `index` — the one not taken yet.
+   * Either the page goes quiet first and the result waits here, or the user
+   * acts first and push() settles the window itself.
    */
   private watchFor(index: number): void {
-    void watchPageChange().then((change) => {
-      const step = this.steps[index];
-      if (!step) {
-        this.pending = { forIndex: index, change };
-        return;
-      }
-      if (!step.wait.provisional) return; // the user has since chosen one
-      step.wait = inferWait(change, step.target);
-      this.emit();
+    this.watch = watchPageChange((change) => {
+      this.watch = null;
+      this.pending = { forIndex: index, change };
     });
   }
 
@@ -323,6 +334,14 @@ function titleCase(title: string): string {
 function isToggle(el: Element): boolean {
   return el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio');
 }
+
+/** Something you type into, rather than press. */
+function isTextEntry(el: Element): boolean {
+  if (el instanceof HTMLTextAreaElement) return true;
+  return el instanceof HTMLInputElement && !isToggle(el) && !BUTTON_INPUTS.has(el.type);
+}
+
+const BUTTON_INPUTS = new Set(['button', 'submit', 'reset', 'file', 'image']);
 
 /**
  * The element a tester would have written the locator for: the nearest
@@ -363,8 +382,10 @@ export function inferWait(change: PageChange, ownTarget: PickResult): WaitSpec {
     ? `${change.requests[0]!.method} ${short(change.requests[0]!.url)} (${Math.round(change.requests[0]!.durationMs)}ms)`
     : null;
 
-  if (change.url) {
-    const path = safePath(change.url);
+  // "/" matches every URL there is, so a wait on it asserts nothing and passes
+  // instantly — worse than no wait, because it looks like one.
+  const path = change.url ? safePath(change.url) : '';
+  if (path && path !== '/') {
     return {
       kind: 'location',
       timeoutS,

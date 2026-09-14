@@ -32,6 +32,15 @@ const UTILITY_PATTERNS: RegExp[] = [
   /^(?:flex|grid|inline|block|hidden|absolute|relative|fixed|sticky)$/,
   /^(?:text|bg|border|ring|shadow|rounded|opacity|z|gap|space)-/,
   /^(?:items|justify|content|self|place)-/,
+  // Flex/grid children, and the layout-only classes that turn up on the exact
+  // wrapper divs a custom dropdown puts under the cursor. `shrink-0` was being
+  // scored as identity, which is how a step ends up called "Click Shrink 0".
+  /^(?:shrink|grow|basis|order|col|row)(?:-|$)/,
+  /^(?:truncate|uppercase|lowercase|capitalize|italic|underline|antialiased)$/,
+  /^(?:overflow|object|whitespace|break|cursor|select|pointer-events|align)-/,
+  /^(?:transition|duration|ease|animate|delay)(?:-|$)/,
+  /^(?:leading|tracking|font|list|divide|outline|ring|backdrop|filter|blur)-/,
+  /^(?:top|right|bottom|left|inset|translate|rotate|scale|skew|origin)-/,
   /\[.+\]$/, // Tailwind arbitrary value, e.g. w-[calc(100%-2rem)]
 ];
 
