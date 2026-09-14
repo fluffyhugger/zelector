@@ -4,7 +4,7 @@ Record a flow, or pick any element — closed shadow roots included — and get
 selectors scored on how likely they are to survive the next deploy. Exports to
 Robot Framework, Playwright, Selenium, Puppeteer, Cypress, CSS and XPath.
 
-Free, MIT, no account, nothing leaves the browser.
+Free, MIT, no account, no servers — [nothing leaves the browser](PRIVACY.md).
 
 ## Why
 
