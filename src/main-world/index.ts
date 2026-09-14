@@ -18,14 +18,27 @@ import { isEnvelope, wrap, type CommandMessage, type PageMessage } from '@/share
 
 installHooks();
 
+/**
+ * A recording belongs to the tab, but events never cross a document boundary,
+ * so every frame has to capture its own. Only the top frame owns the state:
+ * it shows the panel and talks to the worker, while frames below it forward
+ * what they caught and stay quiet.
+ */
+const IS_TOP = window === window.top;
+
 const hud = new Hud();
 
 const recorder = new Recorder({
-  onChange() {
+  onChange(steps) {
+    if (!IS_TOP) {
+      postUp({ type: 'zelector/rec-substeps', steps });
+      return;
+    }
     panel.show(recorder.snapshot());
     send({ type: 'zelector/rec-state', recording: recorder.snapshot() });
   },
   onStateChange() {
+    if (!IS_TOP) return;
     panel.show(recorder.snapshot());
     send({ type: 'zelector/rec-state', recording: recorder.snapshot() });
   },
@@ -80,18 +93,70 @@ function send(message: PageMessage): void {
   window.postMessage(wrap(message), '*');
 }
 
-function toggleRecorder(): void {
-  if (recorder.isRecording) {
-    recorder.stop();
-  } else {
-    picker.stop();
-    hud.hide();
-    recorder.start();
+/** Hand something to the frame above. Cross-origin parents accept this too. */
+function postUp(message: PageMessage): void {
+  try {
+    window.parent.postMessage(wrap(message), '*');
+  } catch {
+    // A parent that will not take the message simply loses those steps.
   }
 }
 
+/**
+ * The command from the worker reaches every frame on its own, but the in-page
+ * shortcut only fires in the frame that has focus — so the top frame passes it
+ * down, and each frame passes it down again.
+ */
+function broadcastDown(active: boolean): void {
+  for (let i = 0; i < window.frames.length; i += 1) {
+    try {
+      window.frames[i]?.postMessage(wrap({ type: 'zelector/rec-broadcast', active }), '*');
+    } catch {
+      // Nothing to do about a frame that refuses to listen.
+    }
+  }
+}
+
+function setRecording(active: boolean): void {
+  if (active === recorder.isRecording) return;
+  if (active) {
+    picker.stop();
+    hud.hide();
+    recorder.start();
+  } else {
+    recorder.stop();
+  }
+  broadcastDown(active);
+}
+
+function toggleRecorder(): void {
+  setRecording(!recorder.isRecording);
+}
+
 window.addEventListener('message', (event: MessageEvent) => {
-  if (event.source !== window || !isEnvelope(event.data)) return;
+  if (!isEnvelope(event.data)) return;
+
+  // Frame traffic arrives from another window, so it is handled before the
+  // same-window check that everything else depends on.
+  const framed = event.data.message as PageMessage;
+  if (framed.type === 'zelector/rec-substeps') {
+    if (IS_TOP && recorder.isRecording) recorder.acceptForeignSteps(framed.steps);
+    return;
+  }
+  if (framed.type === 'zelector/rec-broadcast') {
+    setRecording(framed.active);
+    return;
+  }
+  // A frame that loaded late — lazy iframe, or one replaced mid-flow — asking
+  // whether it should be capturing.
+  if (framed.type === 'zelector/rec-hello' && event.source !== window) {
+    if (recorder.isRecording && event.source) {
+      (event.source as Window).postMessage(wrap({ type: 'zelector/rec-broadcast', active: true }), '*');
+    }
+    return;
+  }
+
+  if (event.source !== window) return;
   const message = event.data.message as CommandMessage;
   switch (message.type) {
     case 'zelector/toggle-picker':
@@ -108,12 +173,15 @@ window.addEventListener('message', (event: MessageEvent) => {
       hud.hide();
       break;
     case 'zelector/toggle-recorder':
-      toggleRecorder();
+      // The command reaches every frame at once, but only the top frame decides:
+      // a frame acting on it too would toggle twice and land on the wrong state.
+      if (IS_TOP) toggleRecorder();
       break;
     case 'zelector/rec-restore':
       // This page replaced the one the flow started on. Pick it back up.
+      if (!IS_TOP) break;
       recorder.restore(message.recording);
-      recorder.start();
+      setRecording(true);
       break;
   }
 });
@@ -145,5 +213,10 @@ window.addEventListener(
 );
 
 send({ type: 'zelector/ready' });
-// Only the top frame asks: a recording belongs to the tab, not to each iframe.
-if (window === window.top) send({ type: 'zelector/rec-hello' });
+if (IS_TOP) {
+  // Ask the worker whether a recording survived a navigation.
+  send({ type: 'zelector/rec-hello' });
+} else {
+  // Ask the frame above whether one is already running.
+  postUp({ type: 'zelector/rec-hello' });
+}

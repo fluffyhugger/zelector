@@ -12,6 +12,12 @@
  *     boundary, so anything nested in one has to go through `dom:` with a
  *     hand-written querySelector chain. We emit that chain rather than a css:
  *     locator that would silently never match.
+ *
+ *  3. Nothing crosses an iframe boundary either. Unlike Playwright, Selenium
+ *     has a current frame, and a locator only ever addresses that frame — so an
+ *     element inside one needs Select Frame first and Unselect Frame after.
+ *     Without them the locator is not wrong, it simply never matches, which is
+ *     the worst way for a test to fail.
  */
 import type { PickResult } from './types';
 import { isUseless } from './volatility';
@@ -22,6 +28,8 @@ export interface RobotLocator {
   strategy: 'id' | 'name' | 'data' | 'link' | 'class' | 'css' | 'xpath' | 'dom';
   /** Why this strategy, or what to watch out for. */
   note: string;
+  /** Frames to Select Frame into, outermost first. Empty in the top document. */
+  frames: string[];
 }
 
 /** `data:id:my_id` matches data-id — so the prefix is stripped from the attribute. */
@@ -31,12 +39,38 @@ const DATA_ATTRS = ['data-testid', 'data-test-id', 'data-test', 'data-cy', 'data
 const safeForPrefix = (v: string) => !v.includes(':') && !v.includes('=');
 
 export function toRobotLocator(result: PickResult): RobotLocator {
+  const frames = result.hops
+    .filter((h) => h.type === 'iframe')
+    .map((h) => frameLocator(h.hostSelector));
+  const guessed = result.hops.some((h) => h.type === 'iframe' && h.reliable === false);
+
+  const base = baseLocator(result);
+  return {
+    ...base,
+    frames,
+    note: guessed
+      ? `${base.note} · ⚠ the frame selector is a guess — a cross-origin parent hides the real one`
+      : base.note,
+  };
+}
+
+/** `#checkout` addresses a frame as `id:checkout`; anything else goes through css:. */
+function frameLocator(hostSelector: string): string {
+  const id = /^#([\w-]+)$/.exec(hostSelector);
+  return id?.[1] && safeForPrefix(id[1]) ? `id:${id[1]}` : `css:${hostSelector}`;
+}
+
+/** The locator within its own frame — frames are handled by the caller. */
+function baseLocator(result: PickResult): Omit<RobotLocator, 'frames'> {
   const a = result.attributes;
   const tag = result.tagName;
 
   // Shadow DOM first — it overrides everything, because no prefix works there.
-  if (result.hops.some((h) => h.type === 'shadow')) {
-    const chain = result.hops
+  // Only shadow hops belong in the chain: an iframe is not a shadowRoot, and
+  // walking one as though it were produces an expression that throws.
+  const shadowHops = result.hops.filter((h) => h.type === 'shadow');
+  if (shadowHops.length) {
+    const chain = shadowHops
       .map((h) => `querySelector('${h.hostSelector.replace(/'/g, "\\'")}').shadowRoot`)
       .join('.');
     const leaf = cssFor(result);
@@ -191,10 +225,30 @@ export function toRobotCode(result: PickResult, keyword?: string): string {
   return action.takesLocator ? renderLocatorKeyword(result, action) : renderRadioKeyword(result, action);
 }
 
+/**
+ * ${CHECKOUT_FRAME} rather than ${FRAME_1} whenever the selector says enough to
+ * name it.
+ */
+export function frameVarNames(frames: string[]): string[] {
+  const taken = new Set<string>();
+  return frames.map((frame) => {
+    const ident = /^id:([\w-]+)$/.exec(frame)?.[1] ?? /iframe[#.]([\w-]+)/.exec(frame)?.[1];
+    const cleaned = ident?.replace(/\W+/g, '_').toUpperCase();
+    // "outer-frame" already says frame; ${OUTER_FRAME_FRAME} says it twice.
+    const base = cleaned ? (/FRAME/.test(cleaned) ? cleaned : `${cleaned}_FRAME`) : 'FRAME';
+    let name = base;
+    let n = 2;
+    while (taken.has(name)) name = `${base}_${n++}`;
+    taken.add(name);
+    return name;
+  });
+}
+
 function renderLocatorKeyword(result: PickResult, action: RobotAction): string {
   const locator = toRobotLocator(result);
   const varName = variableName(result);
   const args = [`\${${varName}}`, ...(action.argument ? [action.argument] : [])].join('    ');
+  const frameVars = frameVarNames(locator.frames);
 
   const header = locator.strategy === 'dom'
     ? [
@@ -207,13 +261,18 @@ function renderLocatorKeyword(result: PickResult, action: RobotAction): string {
   return [
     ...header,
     '*** Variables ***',
+    ...frameVars.map((name, i) => `\${${name}}${pad(name)}${locator.frames[i]}`),
     `# ${locator.note}`,
     `\${${varName}}${pad(varName)}${locator.value}`,
     '',
     '*** Keywords ***',
     keywordName(action, varName),
+    ...frameVars.map((name) => `    Select Frame    \${${name}}`),
     `    Wait Until Element Is Visible    \${${varName}}    timeout=10s`,
     `    ${action.keyword}    ${args}`,
+    // One Unselect Frame is enough at any depth: it returns to the main frame,
+    // not one level up.
+    ...(frameVars.length ? ['    Unselect Frame'] : []),
   ].join('\n');
 }
 

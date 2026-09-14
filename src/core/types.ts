@@ -34,6 +34,12 @@ export interface ContextHop {
   hostSelector: string;
   /** Shadow roots created with { mode: 'closed' } need the MAIN-world hook. */
   closed?: boolean;
+  /**
+   * iframe hops only. False when the frame element itself was unreachable —
+   * a cross-origin parent — and the selector is a guess from the URL rather
+   * than a selector generated against the real element.
+   */
+  reliable?: boolean;
 }
 
 export interface PickResult {

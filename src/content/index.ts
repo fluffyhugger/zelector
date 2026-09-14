@@ -3,7 +3,14 @@
  * (window.postMessage) and the extension (chrome.runtime), which the MAIN world
  * cannot reach.
  */
-import { COMMAND_TYPES, isEnvelope, wrap, type CommandMessage, type PageMessage } from '@/shared/protocol';
+import {
+  COMMAND_TYPES,
+  FRAME_ONLY_TYPES,
+  isEnvelope,
+  wrap,
+  type CommandMessage,
+  type PageMessage,
+} from '@/shared/protocol';
 
 // page → extension
 window.addEventListener('message', (event: MessageEvent) => {
@@ -12,6 +19,8 @@ window.addEventListener('message', (event: MessageEvent) => {
   if (!message.type.startsWith('zelector/')) return;
   // Commands travel the other way; do not echo them back.
   if (COMMAND_TYPES.has(message.type)) return;
+  // Frame-to-frame traffic is none of the worker's business.
+  if (FRAME_ONLY_TYPES.has(message.type)) return;
 
   chrome.runtime.sendMessage(message as PageMessage).catch(() => {
     // No receiver (panel closed, worker asleep) — nothing to do.

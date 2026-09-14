@@ -4,7 +4,7 @@
  *   ISOLATED    ──chrome.runtime──────▶  service worker / devtools panel
  */
 import type { PickResult } from '@/core/types';
-import type { Recording } from '@/core/recording';
+import type { RecordedStep, Recording } from '@/core/recording';
 
 export const CHANNEL = 'zelector';
 
@@ -16,7 +16,15 @@ export type PageMessage =
   /** Full recorder state after every change — the worker is the durable copy. */
   | { type: 'zelector/rec-state'; recording: Recording }
   /** A freshly loaded page asking whether a recording is in progress. */
-  | { type: 'zelector/rec-hello' };
+  | { type: 'zelector/rec-hello' }
+  /**
+   * A child frame handing its steps to the top frame. Events do not cross a
+   * document boundary, so each frame captures its own — but a recording belongs
+   * to the tab, and only the top frame talks to the worker.
+   */
+  | { type: 'zelector/rec-substeps'; steps: RecordedStep[] }
+  /** The top frame telling its frames that recording started or stopped. */
+  | { type: 'zelector/rec-broadcast'; active: boolean };
 
 export type CommandMessage =
   | { type: 'zelector/toggle-picker' }
@@ -33,6 +41,15 @@ export const COMMAND_TYPES: ReadonlySet<string> = new Set<CommandMessage['type']
   'zelector/stop',
   'zelector/toggle-recorder',
   'zelector/rec-restore',
+]);
+
+/**
+ * Messages that travel between frames and stop there. The relay must not pass
+ * them to the worker: only the top frame's rec-state is the recording.
+ */
+export const FRAME_ONLY_TYPES: ReadonlySet<string> = new Set([
+  'zelector/rec-substeps',
+  'zelector/rec-broadcast',
 ]);
 
 export type AnyMessage = PageMessage | CommandMessage;

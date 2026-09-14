@@ -15,6 +15,10 @@ const cases: Array<[string, PickResult]> = [
   ['file', { ...base, tagName: 'input', text: '', attributes: { type:'file', id:'avatar' }, candidates: [{ kind:'id', engine:'css', value:'#avatar', score:85, matches:1, notes:[] }] }],
   ['shadow_closed', { ...base, tagName: 'button', text: 'Pay now', attributes: { class:'pay-btn' }, hops: [{ type:'shadow', hostSelector:'checkout-widget', closed:true }], candidates: [{ kind:'class', engine:'css', value:'button.pay-btn', score:45, matches:1, notes:[] }] }],
   ['path_only', { ...base, tagName: 'div', text: 'Total', attributes: { class:'flex items-center text-sm' }, candidates: [{ kind:'path', engine:'css', value:'main > div:nth-of-type(3)', score:16, matches:1, notes:[] }] }],
+  ['iframe_button', { ...base, tagName: 'button', text: 'Pay now', attributes: { id:'pay-now' }, hops: [{ type:'iframe', hostSelector:'#checkout-frame', reliable:true }], candidates: [{ kind:'id', engine:'css', value:'#pay-now', score:85, matches:1, notes:[] }] }],
+  ['iframe_cross_origin', { ...base, tagName: 'input', text: '', attributes: { name:'card_number' }, hops: [{ type:'iframe', hostSelector:'iframe[src*="/pay"]', reliable:false }], candidates: [{ kind:'name', engine:'css', value:'[name="card_number"]', score:70, matches:1, notes:[] }] }],
+  ['iframe_nested_shadow', { ...base, tagName: 'button', text: 'Confirm', attributes: { class:'confirm' }, hops: [{ type:'iframe', hostSelector:'#outer-frame', reliable:true }, { type:'shadow', hostSelector:'pay-widget', closed:true }], candidates: [{ kind:'class', engine:'css', value:'button.confirm', score:45, matches:1, notes:[] }] }],
+  ['iframe_radio', { ...base, tagName: 'input', text: '', attributes: { type:'radio', name:'card_type', value:'visa', id:'visa' }, hops: [{ type:'iframe', hostSelector:'#checkout-frame', reliable:true }], candidates: [{ kind:'id', engine:'css', value:'#visa', score:85, matches:1, notes:[] }] }],
   ['thai_text_only', { ...base, tagName: 'span', text: 'ราคารวมทั้งหมด', attributes: {}, candidates: [{ kind:'path', engine:'css', value:'span', score:10, matches:1, notes:[] }] }],
 ];
 
@@ -87,4 +91,30 @@ const flow: Recording = {
 };
 
 writeFileSync('rf/_recorded_flow.robot', toRobotSuite(flow, { name: 'Order Is Shipped' }));
-console.log('wrote rf/_recorded_flow.robot');
+
+// A flow that reaches into a payment iframe: the step acts in the frame, and
+// so does the spinner it waits on.
+const framed = (attributes: Record<string, string>, tagName = 'button', value = ''): PickResult => ({
+  ...el(tagName, attributes, '', value),
+  hops: [{ type: 'iframe', hostSelector: '#checkout-frame', reliable: true }],
+});
+
+const iframeFlow: Recording = {
+  active: false,
+  startedAt: Date.UTC(2026, 8, 14),
+  startUrl: 'https://shop.example.com/checkout',
+  name: 'Pay With Card',
+  steps: [
+    { kind: 'input', target: framed({ name: 'card_number' }, 'input'), value: '4111111111111111',
+      wait: { kind: 'visible', target: framed({ name: 'card_number' }, 'input'), timeoutS: 10, reason: '' } },
+    // The spinner lives in the same frame as the button.
+    { kind: 'click', target: framed({ id: 'pay-now' }),
+      wait: { kind: 'not-visible', target: framed({ class: 'spinner' }, 'div', '.spinner'), timeoutS: 20, reason: '' } },
+    // …and this one waits on something out in the top document.
+    { kind: 'click', target: framed({ id: 'confirm' }),
+      wait: { kind: 'visible', target: el('div', { id: 'receipt' }, '', '#receipt'), timeoutS: 15, reason: '' } },
+  ].map(step),
+};
+
+writeFileSync('rf/_recorded_iframe.robot', toRobotSuite(iframeFlow));
+console.log('wrote rf/_recorded_flow.robot, rf/_recorded_iframe.robot');

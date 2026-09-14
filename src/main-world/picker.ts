@@ -260,10 +260,47 @@ function contextHops(el: Element): ContextHop[] {
     });
     node = host;
   }
-  if (window !== window.top) {
-    hops.unshift({ type: 'iframe', hostSelector: `iframe[src*="${location.pathname}"]` });
+  return [...frameHops(), ...hops];
+}
+
+/**
+ * The frames between the top document and this one, outermost first.
+ *
+ * window.frameElement hands back the actual <iframe> in the parent document
+ * whenever the parent is same-origin, so the selector is generated against the
+ * real element the same way every other selector here is. Across an origin
+ * boundary it throws, and all we have left is this document's own URL — a
+ * guess, and flagged as one, because a Select Frame that picks the wrong frame
+ * is worse than one that obviously needs filling in.
+ */
+function frameHops(): ContextHop[] {
+  const hops: ContextHop[] = [];
+  let win: Window = window;
+  let guard = 0;
+
+  while (win !== win.parent && guard++ < 8) {
+    let hop: ContextHop;
+    try {
+      const frame = win.frameElement;
+      hop = frame
+        ? { type: 'iframe', hostSelector: bestSelectorFor(frame), reliable: true }
+        : guessedFrameHop(win === window);
+    } catch {
+      hop = guessedFrameHop(win === window);
+    }
+    hops.unshift(hop);
+    win = win.parent;
   }
   return hops;
+}
+
+/** Only the innermost frame knows its own URL; anything above it is anonymous. */
+function guessedFrameHop(innermost: boolean): ContextHop {
+  return {
+    type: 'iframe',
+    hostSelector: innermost ? `iframe[src*="${location.pathname}"]` : 'iframe',
+    reliable: false,
+  };
 }
 
 function bestSelectorFor(el: Element): string {

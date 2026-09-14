@@ -97,6 +97,14 @@ SeleniumLibrary has no shadow-DOM strategy at all, so elements behind a shadow
 boundary export as a `dom:` expression with a warning comment instead of a `css:`
 locator that would silently never match.
 
+Nothing crosses an iframe boundary either — Selenium has a current frame, and a
+locator only addresses that one — so an element inside a frame gets
+`Select Frame` / `Unselect Frame` around it, and a wait on something in the same
+frame moves inside that block. The frame's own selector comes from
+`window.frameElement`, which means it is generated against the real element
+rather than guessed; across an origin boundary that is unreachable, and the
+guess is labelled as one.
+
 Snippets are checked against the real parser — `npm run test:robot`.
 
 ## How it's wired

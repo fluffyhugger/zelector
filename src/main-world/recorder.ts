@@ -162,6 +162,28 @@ export class Recorder {
     this.emit();
   }
 
+  /**
+   * Steps captured by a frame below this one. Upserted by id and re-ordered by
+   * time, because a frame refines a step's wait after the fact and sends it
+   * again — and because two frames interleave.
+   */
+  acceptForeignSteps(incoming: RecordedStep[]): void {
+    let changed = false;
+    for (const step of incoming) {
+      const at = this.steps.findIndex((s) => s.id === step.id);
+      if (at === -1) {
+        this.steps.push(step);
+        changed = true;
+      } else if (JSON.stringify(this.steps[at]) !== JSON.stringify(step)) {
+        this.steps[at] = step;
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    this.steps.sort((a, b) => a.at - b.at);
+    this.emit();
+  }
+
   /** An assertion chosen through the picker, inserted at the end of the flow. */
   addAssert(target: PickResult, keyword: string): void {
     this.push({ kind: 'assert', target, keyword });

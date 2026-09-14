@@ -14,7 +14,14 @@
  * rather than silently overwriting each other.
  */
 import type { PickResult } from './types';
-import { keywordName, robotActionsFor, toRobotLocator, variableName, type RobotAction } from './robot';
+import {
+  frameVarNames,
+  keywordName,
+  robotActionsFor,
+  toRobotLocator,
+  variableName,
+  type RobotAction,
+} from './robot';
 
 /**
  * How long a keyword waits for its own element. Fixed on purpose: the flow wait
@@ -201,6 +208,26 @@ class Keywords {
 
 // ── Rendering ────────────────────────────────────────────────────────────────
 
+/** The frame variables for an element, declared once each in the suite. */
+function frameVarsFor(target: PickResult, syms: Symbols): string[] {
+  const { frames } = toRobotLocator(target);
+  return frameVarNames(frames).map((name, i) =>
+    syms.plain(name, frames[i]!, i === 0 ? 'Selenium needs Select Frame to reach inside' : ''),
+  );
+}
+
+const framesKey = (target: PickResult): string => toRobotLocator(target).frames.join('|');
+
+/**
+ * Wrap lines in the Select Frame / Unselect Frame pair they need. One Unselect
+ * is enough at any depth — it returns to the main frame, not one level up.
+ */
+function inFrames(lines: string[], target: PickResult, syms: Symbols): string[] {
+  const names = frameVarsFor(target, syms);
+  if (!names.length) return lines;
+  return [...names.map((n) => `    Select Frame    ${v(n)}`), ...lines, '    Unselect Frame'];
+}
+
 function renderWait(wait: WaitSpec, syms: Symbols): string | null {
   switch (wait.kind) {
     case 'none':
@@ -275,16 +302,34 @@ function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedS
   const inKeyword = readiness
     ? wait
     : `    Wait Until Element Is Visible    ${v(syms.forTarget(step.target))}    timeout=${READY_TIMEOUT_S}s`;
-  const pre = wait && !readiness ? [wait] : [];
 
-  if (!action.takesLocator) return renderRadioStep(step, action, syms, kws, inKeyword, pre);
+  // A wait on something inside a frame cannot sit in the test case: there is no
+  // current frame there. It comes back into the keyword, in its own Select
+  // Frame block when it is not the frame the step itself acts in.
+  const waitFramed = !readiness && wait && !!step.wait.target && framesKey(step.wait.target) !== '';
+  const sameFrame = waitFramed && framesKey(step.wait.target!) === framesKey(step.target);
+  const pre = wait && !readiness && !waitFramed ? [wait] : [];
+  const framedWait = waitFramed && !sameFrame ? inFrames([wait!], step.wait.target!, syms) : [];
+
+  if (!action.takesLocator) return renderRadioStep(step, action, syms, kws, inKeyword, pre, framedWait);
 
   const varName = syms.forTarget(step.target);
   const name = keywordName(action, varName);
 
   const args = action.argument ? [argName(action.argument)] : [];
   const callArgs = [v(varName), ...args.map((a) => v(a))].join('    ');
-  const body = [...(inKeyword ? [inKeyword] : []), `    ${action.keyword}    ${callArgs}`];
+  const body = [
+    ...framedWait,
+    ...inFrames(
+      [
+        ...(waitFramed && sameFrame && wait ? [wait] : []),
+        ...(inKeyword ? [inKeyword] : []),
+        `    ${action.keyword}    ${callArgs}`,
+      ],
+      step.target,
+      syms,
+    ),
+  ];
 
   const final = kws.add(name, args, body);
   const passed = action.argument ? `    ${safeValue(step.value ?? action.argument)}` : '';
@@ -302,6 +347,7 @@ function renderRadioStep(
   kws: Keywords,
   wait: string | null,
   pre: string[],
+  framedWait: string[],
 ): RenderedStep {
   const base = variableName(step.target);
   const group = step.target.attributes['name'] ?? 'GROUP_NAME';
@@ -311,8 +357,15 @@ function renderRadioStep(
   const valueVar = syms.plain(`${base}_VALUE`, value);
 
   const body = [
-    ...(wait ? [wait] : [`    Wait Until Page Contains Element    name:${group}    timeout=${step.wait.timeoutS}s`]),
-    `    ${action.keyword}    ${v(groupVar)}    ${v(valueVar)}`,
+    ...framedWait,
+    ...inFrames(
+      [
+        ...(wait ? [wait] : [`    Wait Until Page Contains Element    name:${group}    timeout=${step.wait.timeoutS}s`]),
+        `    ${action.keyword}    ${v(groupVar)}    ${v(valueVar)}`,
+      ],
+      step.target,
+      syms,
+    ),
   ];
   const final = kws.add(keywordName(action, base), [], body);
   return { pre, call: `    ${final}` };
