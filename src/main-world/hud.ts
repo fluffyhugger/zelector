@@ -10,6 +10,7 @@ import { TARGET_LABELS, toCode, type ExportTarget } from '@/core/export';
 import { robotActionsFor } from '@/core/robot';
 import { registerOwnHost, unregisterOwnHost } from './ignore';
 import { applyStyle, h, replace } from './dom-build';
+import { copy } from './deliver';
 
 const HUD_ID = 'zelector-hud-host';
 const TARGETS: ExportTarget[] = [
@@ -206,20 +207,6 @@ function renderCandidate(c: SelectorCandidate): HTMLElement {
       on: { click: (event) => void copy(c.value, event.currentTarget as HTMLElement) },
     }),
   );
-}
-
-/** Shared with the recording panel — same button-flash feedback. */
-export async function copy(text: string, button: HTMLElement): Promise<void> {
-  const original = button.textContent;
-  try {
-    await navigator.clipboard.writeText(text);
-    button.textContent = '✓';
-  } catch {
-    button.textContent = '✕'; // clipboard can be blocked without a user gesture
-  }
-  setTimeout(() => {
-    button.textContent = original;
-  }, 900);
 }
 
 const STYLE = `

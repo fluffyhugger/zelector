@@ -38,7 +38,8 @@ proposes a wait per step, with the reason attached:
 ```
 
 Every row is editable, so you fix the two the recorder got wrong instead of
-answering twenty prompts. Timeouts come from the time the page actually took,
+answering twenty prompts. The suite comes out as a `.robot` file — named after
+the test — or on the clipboard. Timeouts come from the time the page actually took,
 not a default nobody tunes. `Sleep` is in the dropdown, last, with a warning —
 hiding it just means people type it back in by hand.
 

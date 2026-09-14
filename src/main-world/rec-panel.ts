@@ -24,7 +24,7 @@ import {
 import { robotActionsFor } from '@/core/robot';
 import { registerOwnHost, unregisterOwnHost } from './ignore';
 import { applyStyle, h, replace } from './dom-build';
-import { copy } from './hud';
+import { copy, download, robotFilename } from './deliver';
 
 const HOST_ID = 'zelector-rec-host';
 
@@ -293,7 +293,7 @@ export class RecPanel {
       {},
       h('button', {
         class: 'ghost',
-        text: this.showCode ? '← Steps' : 'Preview .robot',
+        text: this.showCode ? '← Steps' : 'Preview',
         on: {
           click: () => {
             this.showCode = !this.showCode;
@@ -307,9 +307,17 @@ export class RecPanel {
         on: { click: () => this.callbacks.onClear() },
       }),
       h('button', {
-        class: 'primary',
-        text: 'Copy suite',
+        class: 'ghost',
+        text: 'Copy',
         on: { click: (event) => void copy(suite, event.currentTarget as HTMLElement) },
+      }),
+      h('button', {
+        class: 'primary',
+        text: `⤓ ${robotFilename(rec.name)}`,
+        title: 'Save the suite as a .robot file',
+        on: {
+          click: (event) => download(suite, robotFilename(rec.name), event.currentTarget as HTMLElement),
+        },
       }),
     );
   }
@@ -441,8 +449,10 @@ footer .ghost {
 }
 footer .ghost:hover { border-color: #7c5cff; color: #e9e7f5; }
 footer .primary {
-  flex: 1; font: 600 12px inherit; background: #7c5cff; color: #fff;
-  border: 0; border-radius: 6px; padding: 6px; cursor: pointer;
+  flex: 1; min-width: 0; font: 600 12px ui-monospace, Menlo, monospace;
+  background: #7c5cff; color: #fff; border: 0; border-radius: 6px;
+  padding: 6px 8px; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 footer .primary:hover { background: #8f73ff; }
 `;
