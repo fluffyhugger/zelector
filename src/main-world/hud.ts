@@ -26,6 +26,18 @@ export class Hud {
   private target: ExportTarget = 'robot';
   /** Which SeleniumLibrary keyword the Robot snippet renders; null = the primary one. */
   private robotKeyword: string | null = null;
+  /**
+   * Set while a recording is in progress: the chip row then doubles as the way
+   * to add an assertion to the flow, which is the only thing a recorder cannot
+   * capture by watching.
+   */
+  private addStep: ((keyword: string) => void) | null = null;
+
+  /** Pass null to go back to plain inspection. */
+  setAddStep(handler: ((keyword: string) => void) | null): void {
+    this.addStep = handler;
+    if (this.result) this.render();
+  }
 
   show(result: PickResult): void {
     this.result = result;
@@ -96,9 +108,10 @@ export class Hud {
    */
   private renderActions(result: PickResult): HTMLElement | null {
     const actions = robotActionsFor(result);
-    if (actions.length < 2) return null;
+    if (actions.length < 2 && !this.addStep) return null;
 
     const current = this.robotKeyword ?? actions[0]!.keyword;
+    const add = this.addStep;
     return h(
       'div',
       { class: 'actions' },
@@ -114,6 +127,14 @@ export class Hud {
           },
         }),
       ),
+      add
+        ? h('button', {
+            class: 'action add',
+            text: '＋ Add as step',
+            title: 'Append this to the recording',
+            on: { click: () => add(current) },
+          })
+        : null,
     );
   }
 
@@ -187,7 +208,8 @@ function renderCandidate(c: SelectorCandidate): HTMLElement {
   );
 }
 
-async function copy(text: string, button: HTMLElement): Promise<void> {
+/** Shared with the recording panel — same button-flash feedback. */
+export async function copy(text: string, button: HTMLElement): Promise<void> {
   const original = button.textContent;
   try {
     await navigator.clipboard.writeText(text);
@@ -256,6 +278,8 @@ footer .action {
 }
 footer .action:hover { border-color: #7c5cff; color: #e9e7f5; }
 footer .action.on { background: #3a2f6e; border-color: #7c5cff; color: #fff; }
+footer .action.add { background: #1e3a2f; border-color: #2f6e52; color: #86efac; margin-left: auto; }
+footer .action.add:hover { border-color: #34d399; color: #d1fae5; }
 footer .code {
   margin: 0; padding: 9px; background: #0f0d1f; border-radius: 6px;
   font: 11.5px/1.6 ui-monospace, Menlo, monospace; color: #c9c4e8;

@@ -1,8 +1,10 @@
 # Zelector
 
-Pick any element on a page, including inside closed shadow roots, and get every
-reasonable selector for it, scored on how likely it is to survive the next deploy.
-Exports to Playwright, Selenium, Puppeteer, Cypress, Robot Framework, CSS and XPath.
+Record a flow, or pick any element — closed shadow roots included — and get
+selectors scored on how likely they are to survive the next deploy. Exports to
+Robot Framework, Playwright, Selenium, Puppeteer, Cypress, CSS and XPath.
+
+Free, MIT, no account, nothing leaves the browser.
 
 ## Why
 
@@ -17,6 +19,46 @@ an `attachShadow` hook installed at `document_start`, and penalises generated cl
 names (`css-1x9d8f`, `Button_root__3kD9a`, `_ngcontent-…`) instead of offering them
 as if they were stable.
 
+## Record a flow
+
+`⌥⇧R` starts recording. Use the page the way you normally would — clicks, typing
+and dropdowns are captured, keystrokes collapse into one `Input Text`, and a
+click on a `<span>` inside a button records the button.
+
+What it does not do is ask you to choose a wait every time you click. That
+interrupts the flow you are reproducing, and worse, folds your thinking time
+into the timings it is measuring. Instead it watches what the page actually did
+— which request fired, what appeared, what appeared and then vanished — and
+proposes a wait per step, with the reason attached:
+
+```
+3  Click Button ▾   button[export-csv]
+   wait  Wait Until Element Is Not Visible ▾  <div>  15s
+   ⓘ after POST /api/export (780ms), <div> appeared then went away
+```
+
+Every row is editable, so you fix the two the recorder got wrong instead of
+answering twenty prompts. Timeouts come from the time the page actually took,
+not a default nobody tunes. `Sleep` is in the dropdown, last, with a warning —
+hiding it just means people type it back in by hand.
+
+Assertions are the part no recorder can capture by watching, so the panel keeps
+a **＋ Add assertion** button on screen: it opens the picker, and the keyword
+list becomes the list of assertions you can append.
+
+The recording survives navigation: it lives in the service worker, and the new
+page picks it back up — which also turns the click that navigated into a
+`Wait Until Location Contains`.
+
+The panel has a **test** and a **doc** field. The name is seeded from the page
+title and becomes the test case heading; the doc becomes its `[Documentation]`,
+defaulting to where and when the flow was recorded — which is the question
+anyone reading a generated suite six months later actually has.
+
+Output is a full suite: one keyword per element, each waiting for its own
+element, with the flow-level waits left visible in the test case. Clicking the
+same button twice defines one keyword, not two.
+
 ## Install (dev)
 
 ```bash
@@ -30,6 +72,7 @@ npm run dev        # rebuilds dist/ on change
 
 | macOS | Windows / Linux | |
 |---|---|---|
+| `⌥` `⇧` `R` | `Alt` `Shift` `R` | start / stop recording |
 | `⌥` `Z` | `Alt` `Z` | toggle the picker |
 | `⌥` `⇧` `F` | `Alt` `Shift` `F` | freeze the DOM |
 | `↑` `↓` | `↑` `↓` | walk the selection up/down the tree |

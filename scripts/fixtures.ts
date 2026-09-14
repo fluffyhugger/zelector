@@ -1,5 +1,6 @@
 import { toCode } from '@/core/export';
 import { robotActionsFor } from '@/core/robot';
+import { toRobotSuite, type RecordedStep, type Recording } from '@/core/recording';
 import type { PickResult } from '@/core/types';
 import { writeFileSync, mkdirSync } from 'node:fs';
 
@@ -30,3 +31,60 @@ for (const [name, pick] of cases) {
   }
 }
 console.log(`wrote ${written} .robot files`);
+
+// ── A recorded flow ──────────────────────────────────────────────────────────
+// The suite generator has to survive things a single-element export never sees:
+// the same element twice, a locator-less radio keyword, values carrying Robot
+// syntax, and a wait pointing at an element the step itself never touches.
+
+const el = (
+  tagName: string,
+  attributes: Record<string, string>,
+  text = '',
+  value = '',
+): PickResult => ({
+  ...base,
+  tagName,
+  text,
+  attributes,
+  candidates: [{ kind: 'id', engine: 'css', value: value || `${tagName}`, score: 80, matches: 1, notes: [] }],
+});
+
+const spinner = el('div', { class: 'loading-spinner' }, '', '.loading-spinner');
+const step = (s: Omit<RecordedStep, 'id' | 'at'>, i: number): RecordedStep => ({ ...s, id: `s${i}`, at: i });
+
+const flow: Recording = {
+  active: false,
+  startedAt: Date.UTC(2026, 8, 14),
+  startUrl: 'https://shop.example.com/login',
+  // Both carry things a cell would otherwise eat: a run of spaces and a ${.
+  name: '  Order Is Shipped   After Checkout  ',
+  doc: 'Signs in, filters to shipped orders and checks the  total against ${EXPECTED}.',
+  steps: [
+    { kind: 'input', target: el('input', { id: 'username', type: 'text' }), value: 'somebody@example.com',
+      wait: { kind: 'visible', target: el('input', { id: 'username', type: 'text' }), timeoutS: 10, reason: '' } },
+    { kind: 'input', target: el('input', { id: 'password', type: 'password' }), value: 'hunter2  ${NOT_A_VAR}',
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    { kind: 'click', target: el('button', { id: 'sign-in', type: 'submit' }, 'Sign in'),
+      wait: { kind: 'not-visible', target: spinner, timeoutS: 15, reason: '' } },
+    { kind: 'click', target: el('a', { href: '/orders' }, 'My Orders'),
+      wait: { kind: 'location', urlFragment: '/dashboard', timeoutS: 20, reason: '' } },
+    { kind: 'select', target: el('select', { name: 'status' }), value: 'Shipped',
+      wait: { kind: 'contains', target: el('table', { id: 'orders' }), timeoutS: 10, reason: '' } },
+    { kind: 'check', target: el('input', { type: 'checkbox', 'data-testid': 'select-all' }),
+      wait: { kind: 'sleep', seconds: 2, timeoutS: 10, reason: '' } },
+    { kind: 'check', target: el('input', { type: 'radio', name: 'shipping', value: 'express', id: 'ship-x' }),
+      wait: { kind: 'enabled', target: el('input', { type: 'radio', name: 'shipping', value: 'express', id: 'ship-x' }), timeoutS: 10, reason: '' } },
+    // The same button again: one variable, one keyword, two calls.
+    { kind: 'click', target: el('button', { id: 'sign-in', type: 'submit' }, 'Sign in'),
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    { kind: 'navigate', target: el('html', {}), value: 'https://shop.example.com/receipt',
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    { kind: 'assert', target: el('span', { 'data-testid': 'order-total' }, '฿1,240.00'),
+      keyword: 'Element Text Should Be', value: '฿1,240.00',
+      wait: { kind: 'visible', target: el('span', { 'data-testid': 'order-total' }), timeoutS: 10, reason: '' } },
+  ].map(step),
+};
+
+writeFileSync('rf/_recorded_flow.robot', toRobotSuite(flow, { name: 'Order Is Shipped' }));
+console.log('wrote rf/_recorded_flow.robot');

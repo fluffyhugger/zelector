@@ -2,50 +2,82 @@
   "manifest_version": 3,
   "name": "Zelector",
   "version": "0.1.0",
-  "description": "Inspect any element — closed shadow DOM included — and export a scored, stable selector to Robot Framework, Playwright or Selenium.",
+  "description": "Record a flow or pick any element — closed shadow DOM included — and export durable locators and Robot Framework, Playwright or Selenium code.",
   "minimum_chrome_version": "120",
   "homepage_url": "https://github.com/fluffyhugger/zelector",
-
-  "permissions": ["activeTab", "storage", "clipboardWrite"],
-  "host_permissions": ["<all_urls>"],
-
+  "permissions": [
+    "activeTab",
+    "storage",
+    "clipboardWrite"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
   "action": {
-    "default_title": "Zelector — pick an element (Alt+Z)",
-    "default_icon": { "16": "icons/icon16.png", "32": "icons/icon32.png", "128": "icons/icon128.png" }
+    "default_title": "Zelector — record a flow or pick an element",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "128": "icons/icon128.png"
+    }
   },
-  "icons": { "16": "icons/icon16.png", "32": "icons/icon32.png", "48": "icons/icon48.png", "128": "icons/icon128.png" },
-
-  "background": { "service_worker": "background.js" },
-
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
-      "matches": ["<all_urls>"],
-      "js": ["main-world.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "main-world.js"
+      ],
       "world": "MAIN",
       "run_at": "document_start",
       "all_frames": true,
       "match_about_blank": true
     },
     {
-      "matches": ["<all_urls>"],
-      "js": ["content.js"],
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "content.js"
+      ],
       "world": "ISOLATED",
       "run_at": "document_idle",
       "all_frames": true,
       "match_about_blank": true
     }
   ],
-
   "devtools_page": "devtools.html",
-
   "commands": {
     "toggle-picker": {
-      "suggested_key": { "default": "Alt+Z", "mac": "Alt+Z" },
+      "suggested_key": {
+        "default": "Alt+Z",
+        "mac": "Alt+Z"
+      },
       "description": "Toggle element picker"
     },
     "freeze-dom": {
-      "suggested_key": { "default": "Alt+Shift+F", "mac": "Alt+Shift+F" },
+      "suggested_key": {
+        "default": "Alt+Shift+F",
+        "mac": "Alt+Shift+F"
+      },
       "description": "Freeze the DOM (keep hover menus open while you inspect)"
+    },
+    "toggle-recorder": {
+      "suggested_key": {
+        "default": "Alt+Shift+R",
+        "mac": "Alt+Shift+R"
+      },
+      "description": "Start / stop recording a flow"
     }
   }
 }
