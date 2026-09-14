@@ -29,7 +29,8 @@ export const TARGET_LABELS: Record<ExportTarget, string> = {
 const best = (list: SelectorCandidate[], engines: SelectorCandidate['engine'][]) =>
   list.filter((c) => engines.includes(c.engine)).sort((a, b) => b.score - a.score)[0];
 
-export function toCode(result: PickResult, target: ExportTarget): string {
+/** `robotKeyword` selects one of the alternatives from robotActionsFor(); ignored by every other target. */
+export function toCode(result: PickResult, target: ExportTarget, robotKeyword?: string): string {
   const anyBest = best(result.candidates, ['css', 'playwright']);
   const cssBest = best(result.candidates, ['css']);
   const shadowNote = result.hops.length
@@ -38,7 +39,7 @@ export function toCode(result: PickResult, target: ExportTarget): string {
 
   switch (target) {
     case 'robot':
-      return toRobotCode(result);
+      return toRobotCode(result, robotKeyword);
 
     case 'robot-locator':
       return toRobotLocator(result).value;

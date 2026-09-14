@@ -14,6 +14,7 @@
  *     locator that would silently never match.
  */
 import type { PickResult } from './types';
+import { isUseless } from './volatility';
 
 export interface RobotLocator {
   /** e.g. "data:testid:confirm-order" */
@@ -89,53 +90,104 @@ function cssFor(result: PickResult): string {
   return css?.value ?? result.tagName;
 }
 
-interface RobotAction {
+export interface RobotAction {
+  /** SeleniumLibrary keyword. Doubles as the id of the action. */
   keyword: string;
-  /** Extra argument column, e.g. the text to type. */
+  /** Extra argument column, e.g. the text to type or the value to assert. */
   argument?: string;
-  verb: string;
   /**
-   * Select Radio Button is the one keyword here that does NOT take a locator:
-   * its signature is (group_name, value), where group_name is the radio group's
-   * name attribute and value is the radio's id or value. Passing a locator
-   * would fail at runtime, so it gets its own rendering path.
+   * How the generated keyword is named. `verb` puts it in front
+   * ("Click Export CSV"), `suffix` behind ("Export CSV Should Be Enabled").
+   */
+  verb?: string;
+  suffix?: string;
+  /**
+   * Select Radio Button and Radio Button Should Be Set To are the keywords here
+   * that do NOT take a locator: their signature is (group_name, value), where
+   * group_name is the radio group's name attribute and value is the radio's id
+   * or value. Passing a locator would fail at runtime, so they get their own
+   * rendering path.
    */
   takesLocator: boolean;
 }
 
+const act = (keyword: string, extra: Omit<Partial<RobotAction>, 'keyword'> = {}): RobotAction => ({
+  keyword,
+  takesLocator: true,
+  ...extra,
+});
+
+const ENABLED = act('Element Should Be Enabled', { suffix: 'Should Be Enabled' });
+const DISABLED = act('Element Should Be Disabled', { suffix: 'Should Be Disabled' });
+const TEXT_IS = act('Element Text Should Be', { suffix: 'Text Should Be', argument: '${EXPECTED}' });
+const CONTAINS = act('Element Should Contain', { suffix: 'Should Contain', argument: '${EXPECTED}' });
+const VALUE_IS = act('Textfield Value Should Be', { suffix: 'Value Should Be', argument: '${EXPECTED}' });
+const CLEAR = act('Clear Element Text', { verb: 'Clear' });
+
 /**
- * SeleniumLibrary has a keyword per element kind, and using the specific one
- * matters: Click Button also matches on the value attribute, Click Link on href
- * and link text, while Click Element only knows id and name.
+ * The keywords worth offering for an element, most likely first. Deliberately
+ * three or four: past that, reading the list costs more than typing the keyword
+ * by hand. A test is mostly assertions, so each list pairs the obvious action
+ * with the checks people actually write against that kind of element.
+ *
+ * Using the specific keyword matters — Click Button also matches on the value
+ * attribute, Click Link on href and link text, while Click Element only knows
+ * id and name.
  */
-export function robotActionFor(result: PickResult): RobotAction {
+export function robotActionsFor(result: PickResult): RobotAction[] {
   const tag = result.tagName;
   const type = (result.attributes['type'] ?? '').toLowerCase();
 
-  const L = { takesLocator: true } as const;
-
-  if (tag === 'select') return { ...L, keyword: 'Select From List By Label', argument: '${LABEL}', verb: 'Select' };
-  if (tag === 'textarea') return { ...L, keyword: 'Input Text', argument: '${TEXT}', verb: 'Fill' };
-  if (tag === 'a') return { ...L, keyword: 'Click Link', verb: 'Click' };
-  if (tag === 'button') return { ...L, keyword: 'Click Button', verb: 'Click' };
+  if (tag === 'select') {
+    return [
+      act('Select From List By Label', { verb: 'Select', argument: '${LABEL}' }),
+      act('List Selection Should Be', { suffix: 'Selection Should Be', argument: '${LABEL}' }),
+      DISABLED,
+    ];
+  }
+  if (tag === 'textarea') {
+    return [act('Input Text', { verb: 'Fill', argument: '${TEXT}' }), VALUE_IS, CLEAR];
+  }
+  if (tag === 'a') {
+    return [act('Click Link', { verb: 'Click' }), CONTAINS, TEXT_IS];
+  }
+  if (tag === 'button') {
+    return [act('Click Button', { verb: 'Click' }), ENABLED, DISABLED, TEXT_IS];
+  }
 
   if (tag === 'input') {
     switch (type) {
-      case 'password': return { ...L, keyword: 'Input Password', argument: '${PASSWORD}', verb: 'Fill' };
-      case 'checkbox': return { ...L, keyword: 'Select Checkbox', verb: 'Check' };
-      case 'radio': return { keyword: 'Select Radio Button', verb: 'Choose', takesLocator: false };
-      case 'file': return { ...L, keyword: 'Choose File', argument: '${FILE_PATH}', verb: 'Upload' };
+      case 'password':
+        return [act('Input Password', { verb: 'Fill', argument: '${PASSWORD}' }), CLEAR, DISABLED];
+      case 'checkbox':
+        return [
+          act('Select Checkbox', { verb: 'Check' }),
+          act('Unselect Checkbox', { verb: 'Uncheck' }),
+          act('Checkbox Should Be Selected', { suffix: 'Should Be Selected' }),
+          act('Checkbox Should Not Be Selected', { suffix: 'Should Not Be Selected' }),
+        ];
+      case 'radio':
+        return [
+          act('Select Radio Button', { verb: 'Choose', takesLocator: false }),
+          act('Radio Button Should Be Set To', { suffix: 'Should Be Set To', takesLocator: false }),
+        ];
+      case 'file':
+        return [act('Choose File', { verb: 'Upload', argument: '${FILE_PATH}' })];
       case 'submit':
       case 'button':
-      case 'reset': return { ...L, keyword: 'Click Button', verb: 'Click' };
-      default: return { ...L, keyword: 'Input Text', argument: '${TEXT}', verb: 'Fill' };
+      case 'reset':
+        return [act('Click Button', { verb: 'Click' }), ENABLED, DISABLED];
+      default:
+        return [act('Input Text', { verb: 'Fill', argument: '${TEXT}' }), VALUE_IS, CLEAR, DISABLED];
     }
   }
-  return { ...L, keyword: 'Click Element', verb: 'Click' };
+  return [act('Click Element', { verb: 'Click' }), TEXT_IS, CONTAINS];
 }
 
-export function toRobotCode(result: PickResult): string {
-  const action = robotActionFor(result);
+/** `keyword` picks one of the alternatives; the primary action is the default. */
+export function toRobotCode(result: PickResult, keyword?: string): string {
+  const actions = robotActionsFor(result);
+  const action = actions.find((a) => a.keyword === keyword) ?? actions[0]!;
   return action.takesLocator ? renderLocatorKeyword(result, action) : renderRadioKeyword(result, action);
 }
 
@@ -155,20 +207,20 @@ function renderLocatorKeyword(result: PickResult, action: RobotAction): string {
   return [
     ...header,
     '*** Variables ***',
+    `# ${locator.note}`,
     `\${${varName}}${pad(varName)}${locator.value}`,
     '',
     '*** Keywords ***',
-    `${action.verb} ${titleCase(varName)}`,
-    `    [Documentation]    ${locator.note}`,
+    keywordName(action, varName),
     `    Wait Until Element Is Visible    \${${varName}}    timeout=10s`,
     `    ${action.keyword}    ${args}`,
   ].join('\n');
 }
 
 /**
- * Select Radio Button(group_name, value) — both arguments are plain attribute
- * values, so there is no locator variable to define. The wait still needs one,
- * and name: is the only strategy guaranteed to find a member of the group.
+ * Both radio keywords take (group_name, value) — plain attribute values, so
+ * there is no locator variable to define. The wait still needs one, and name:
+ * is the only strategy guaranteed to find a member of the group.
  */
 function renderRadioKeyword(result: PickResult, action: RobotAction): string {
   const group = result.attributes['name'] ?? '${GROUP_NAME}';
@@ -177,15 +229,22 @@ function renderRadioKeyword(result: PickResult, action: RobotAction): string {
 
   return [
     '*** Variables ***',
+    `# ${action.keyword} takes the group name and the button's value — not a locator`,
     `\${${varName}_GROUP}${pad(varName + '_GROUP')}${group}`,
     `\${${varName}_VALUE}${pad(varName + '_VALUE')}${value}`,
     '',
     '*** Keywords ***',
-    `${action.verb} ${titleCase(varName)}`,
-    `    [Documentation]    Select Radio Button takes the group name and the button's value — not a locator`,
+    keywordName(action, varName),
     `    Wait Until Page Contains Element    name:${group}    timeout=10s`,
     `    ${action.keyword}    \${${varName}_GROUP}    \${${varName}_VALUE}`,
   ].join('\n');
+}
+
+/** "Click Export CSV" for actions, "Export CSV Should Be Enabled" for assertions. */
+export function keywordName(action: RobotAction, varName: string): string {
+  const title = titleCase(varName);
+  if (action.suffix) return `${title} ${action.suffix}`;
+  return `${action.verb ?? 'Use'} ${title}`;
 }
 
 /** Pad the variable column to 24 chars, the usual Robot alignment. */
@@ -194,14 +253,17 @@ function pad(varName: string): string {
   return ' '.repeat(width);
 }
 
-function variableName(result: PickResult): string {
+export function variableName(result: PickResult): string {
   const a = result.attributes;
   const source =
     DATA_ATTRS.map((k) => a[k]).find(Boolean) ??
     a['id'] ??
     a['name'] ??
     a['aria-label'] ??
-    result.text.split(/\s+/).slice(0, 3).join(' ') ??
+    (result.text.split(/\s+/).slice(0, 3).join(' ') || undefined) ??
+    // A spinner has none of the above but usually says what it is in a class.
+    // ${LOADING_SPINNER} beats ${DIV} in a suite someone has to read.
+    identifyingClass(a['class']) ??
     result.tagName;
 
   const cleaned = (source || result.tagName)
@@ -214,11 +276,19 @@ function variableName(result: PickResult): string {
   return cleaned || `${result.tagName.toUpperCase()}_TARGET`;
 }
 
+/** The first class that names the thing rather than styling it. */
+function identifyingClass(classAttr: string | undefined): string | undefined {
+  return classAttr?.split(/\s+/).filter(Boolean).find((c) => !isUseless(c));
+}
+
+/** Words a tester would keep shouting: "Click Export CSV", not "Click Export Csv". */
+const ACRONYMS = new Set(['csv', 'pdf', 'url', 'id', 'api', 'ok', 'sms', 'otp', 'qr', 'ui', 'html', 'xml', 'json']);
+
 function titleCase(varName: string): string {
   return varName
     .toLowerCase()
     .split('_')
     .filter(Boolean)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .map((w) => (ACRONYMS.has(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
     .join(' ');
 }

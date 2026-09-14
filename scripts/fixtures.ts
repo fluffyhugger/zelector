@@ -1,4 +1,5 @@
 import { toCode } from '@/core/export';
+import { robotActionsFor } from '@/core/robot';
 import type { PickResult } from '@/core/types';
 import { writeFileSync, mkdirSync } from 'node:fs';
 
@@ -17,7 +18,15 @@ const cases: Array<[string, PickResult]> = [
 ];
 
 mkdirSync('rf', { recursive: true });
+// Every alternative keyword, not just the primary one — each renders its own
+// argument columns and keyword name, so each is its own chance to emit
+// something the parser rejects.
+let written = 0;
 for (const [name, pick] of cases) {
-  writeFileSync(`rf/${name}.robot`, toCode(pick, 'robot') + '\n');
+  for (const action of robotActionsFor(pick)) {
+    const slug = action.keyword.toLowerCase().replace(/\s+/g, '_');
+    writeFileSync(`rf/${name}__${slug}.robot`, toCode(pick, 'robot', action.keyword) + '\n');
+    written += 1;
+  }
 }
-console.log(`wrote ${cases.length} .robot files`);
+console.log(`wrote ${written} .robot files`);

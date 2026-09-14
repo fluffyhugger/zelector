@@ -7,6 +7,7 @@
  */
 import type { PickResult, SelectorCandidate } from '@/core/types';
 import { TARGET_LABELS, toCode, type ExportTarget } from '@/core/export';
+import { robotActionsFor } from '@/core/robot';
 import { registerOwnHost, unregisterOwnHost } from './ignore';
 import { applyStyle, h, replace } from './dom-build';
 
@@ -23,6 +24,8 @@ export class Hud {
   private card: HTMLDivElement | null = null;
   private result: PickResult | null = null;
   private target: ExportTarget = 'robot';
+  /** Which SeleniumLibrary keyword the Robot snippet renders; null = the primary one. */
+  private robotKeyword: string | null = null;
 
   show(result: PickResult): void {
     this.result = result;
@@ -86,6 +89,34 @@ export class Hud {
     return h('ul', { class: 'cands' }, ...result.candidates.map((c) => renderCandidate(c)));
   }
 
+  /**
+   * The keywords worth running against this element. A test is mostly
+   * assertions, so the alternatives matter as much as the obvious action —
+   * but the list stays short enough to scan without reading.
+   */
+  private renderActions(result: PickResult): HTMLElement | null {
+    const actions = robotActionsFor(result);
+    if (actions.length < 2) return null;
+
+    const current = this.robotKeyword ?? actions[0]!.keyword;
+    return h(
+      'div',
+      { class: 'actions' },
+      ...actions.map((a) =>
+        h('button', {
+          class: a.keyword === current ? 'action on' : 'action',
+          text: a.keyword,
+          on: {
+            click: () => {
+              this.robotKeyword = a.keyword;
+              this.render();
+            },
+          },
+        }),
+      ),
+    );
+  }
+
   private renderFooter(result: PickResult): HTMLElement {
     const select = h(
       'select',
@@ -94,6 +125,7 @@ export class Hud {
         on: {
           change: (event) => {
             this.target = (event.target as HTMLSelectElement).value as ExportTarget;
+            this.robotKeyword = null;
             this.render();
           },
         },
@@ -103,11 +135,12 @@ export class Hud {
       ),
     );
 
-    const code = toCode(result, this.target);
+    const code = toCode(result, this.target, this.robotKeyword ?? undefined);
     return h(
       'footer',
       {},
       select,
+      this.target === 'robot' ? this.renderActions(result) : null,
       h('pre', { class: 'code', text: code }),
       h('button', {
         class: 'copy-code',
@@ -216,6 +249,13 @@ footer .target {
   font: inherit; background: #221e3e; color: #e9e7f5;
   border: 1px solid #3a3363; border-radius: 6px; padding: 5px 8px;
 }
+footer .actions { display: flex; flex-wrap: wrap; gap: 5px; }
+footer .action {
+  font: 11px inherit; background: #221e3e; color: #a99ee0;
+  border: 1px solid #3a3363; border-radius: 5px; padding: 3px 8px; cursor: pointer;
+}
+footer .action:hover { border-color: #7c5cff; color: #e9e7f5; }
+footer .action.on { background: #3a2f6e; border-color: #7c5cff; color: #fff; }
 footer .code {
   margin: 0; padding: 9px; background: #0f0d1f; border-radius: 6px;
   font: 11.5px/1.6 ui-monospace, Menlo, monospace; color: #c9c4e8;
