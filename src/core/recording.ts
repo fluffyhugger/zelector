@@ -133,7 +133,7 @@ export function actionForStep(step: RecordedStep): RobotAction {
  */
 class Symbols {
   private byLocator = new Map<string, string>();
-  private taken = new Set<string>();
+  private taken = new Set<string>(RESERVED_VARS.map(normalizeVar));
   readonly rows: Array<{ name: string; value: string; note: string }> = [];
 
   forTarget(target: PickResult): string {
@@ -160,14 +160,14 @@ class Symbols {
   }
 
   private claim(base: string): string {
-    if (!this.taken.has(base)) {
-      this.taken.add(base);
+    if (!this.taken.has(normalizeVar(base))) {
+      this.taken.add(normalizeVar(base));
       return base;
     }
     let n = 2;
-    while (this.taken.has(`${base}_${n}`)) n += 1;
+    while (this.taken.has(normalizeVar(`${base}_${n}`))) n += 1;
     const name = `${base}_${n}`;
-    this.taken.add(name);
+    this.taken.add(normalizeVar(name));
     return name;
   }
 }
@@ -243,10 +243,29 @@ function renderWait(wait: WaitSpec, syms: Symbols): string | null {
   }
 }
 
-/** `${TEXT}` as a keyword argument reads better lowercase: `${text}`. */
+/**
+ * `${TEXT}` becomes the argument `${arg_text}`.
+ *
+ * The prefix is not decoration. Robot matches variable names case-insensitively
+ * and ignores underscores and spaces while doing it, so `${password}` and
+ * `${PASSWORD}` are one variable — and a keyword taking `${password}` while its
+ * locator lives in `${PASSWORD}` overwrites the locator with the typed value
+ * the moment it is called. It parses, it looks right, and it fails at run time
+ * with "Element 'hunter2' not visible", which is a long way from the cause.
+ *
+ * Every password field in the world would have hit this.
+ */
 function argName(placeholder: string): string {
-  return placeholder.replace(/^\$\{|\}$/g, '').toLowerCase();
+  return `arg_${placeholder.replace(/^\$\{|\}$/g, '').toLowerCase()}`;
 }
+
+/** Robot's own comparison: case-insensitive, and underscores and spaces ignored. */
+const normalizeVar = (name: string): string => name.toLowerCase().replace(/[\s_]/g, '');
+
+/** Argument names are claimed up front so no locator can ever take one. */
+const RESERVED_VARS = ['TEXT', 'PASSWORD', 'LABEL', 'EXPECTED', 'FILE_PATH'].map((n) =>
+  argName(`\${${n}}`),
+);
 
 /**
  * A recorded value goes into a cell, where two spaces mean "next argument" and
