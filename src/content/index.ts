@@ -33,3 +33,20 @@ chrome.runtime.onMessage.addListener((message: CommandMessage) => {
     window.postMessage(wrap(message), '*');
   }
 });
+
+/**
+ * Ask whether a recording survived the navigation that brought us here.
+ *
+ * This has to come from the relay, not from the page. The MAIN world runs at
+ * document_start and this runs at document_idle, and window.postMessage is not
+ * buffered — anything the page sent before this listener existed is simply
+ * gone. So the later script starts the handshake, by which point both worlds
+ * are up.
+ *
+ * Only the top frame asks: a recording belongs to the tab.
+ */
+if (window === window.top) {
+  chrome.runtime.sendMessage({ type: 'zelector/rec-hello' } satisfies PageMessage).catch(() => {
+    // Worker asleep with nothing to say; there is no recording to lose.
+  });
+}

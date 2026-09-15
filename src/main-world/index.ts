@@ -217,10 +217,11 @@ window.addEventListener(
 );
 
 send({ type: 'zelector/ready' });
-if (IS_TOP) {
-  // Ask the worker whether a recording survived a navigation.
-  send({ type: 'zelector/rec-hello' });
-} else {
-  // Ask the frame above whether one is already running.
-  postUp({ type: 'zelector/rec-hello' });
-}
+// The top frame does NOT ask the worker from here: this runs at document_start
+// and the relay that would carry the question does not exist until
+// document_idle, so the question was being dropped on the floor and a recording
+// never survived a navigation. content.js asks on its own behalf instead.
+//
+// Frame to frame is a different matter — the parent has been listening since
+// its own document_start, so a late-loading frame can ask it directly.
+if (!IS_TOP) postUp({ type: 'zelector/rec-hello' });
