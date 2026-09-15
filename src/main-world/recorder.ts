@@ -249,7 +249,7 @@ export class Recorder {
 
     const kind: StepKind = isToggle(el) ? 'check' : 'click';
     // A click on a checkbox also fires change; the change handler defers to this.
-    this.push({ kind, target: describe(el) });
+    this.push({ kind, target: describe(el), ...toggleKeyword(el) });
   };
 
   private onInput = (event: Event): void => {
@@ -278,7 +278,7 @@ export class Recorder {
       // The click handler already recorded this one.
       const last = this.steps[this.steps.length - 1];
       if (last?.kind === 'check' && Date.now() - last.at < 400) return;
-      this.push({ kind: 'check', target: describe(el) });
+      this.push({ kind: 'check', target: describe(el), ...toggleKeyword(el) });
       return;
     }
     if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) this.flushTyping();
@@ -362,6 +362,24 @@ function titleCase(title: string): string {
 
 function isToggle(el: Element): boolean {
   return el instanceof HTMLInputElement && (el.type === 'checkbox' || el.type === 'radio');
+}
+
+/**
+ * Which keyword a toggle became, rather than which one it usually is.
+ *
+ * Select Checkbox was emitted for every click on one, so clicking a box on and
+ * then off again recorded as checking it twice. It still passes — Select
+ * Checkbox on an already-checked box does nothing — but it stops describing
+ * what happened, and a recording that quietly disagrees with the session it
+ * came from is not worth having.
+ *
+ * Checkedness is set before the click event is dispatched, so this reads the
+ * state the user is looking at. A radio needs no such care: clicking one always
+ * selects it and never clears it.
+ */
+function toggleKeyword(el: Element): { keyword?: string } {
+  if (!(el instanceof HTMLInputElement) || el.type !== 'checkbox') return {};
+  return { keyword: el.checked ? 'Select Checkbox' : 'Unselect Checkbox' };
 }
 
 /** Something you type into, rather than press. */
