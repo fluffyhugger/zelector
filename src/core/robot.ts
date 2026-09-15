@@ -378,7 +378,10 @@ function identifyingClass(classAttr: string | undefined): string | undefined {
 }
 
 /** Words a tester would keep shouting: "Click Export CSV", not "Click Export Csv". */
-const ACRONYMS = new Set(['csv', 'pdf', 'url', 'id', 'api', 'ok', 'sms', 'otp', 'qr', 'ui', 'html', 'xml', 'json']);
+const ACRONYMS = new Set([
+  'csv', 'pdf', 'url', 'uri', 'id', 'api', 'ok', 'sms', 'otp', 'qr', 'ui', 'ux',
+  'html', 'xml', 'json', 'css', 'http', 'https', 'sql', 'faq', 'cta', 'kpi', 'db',
+]);
 
 function titleCase(varName: string): string {
   return varName

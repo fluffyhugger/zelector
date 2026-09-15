@@ -436,6 +436,15 @@ export function toRobotSuite(rec: Recording, options: SuiteOptions = {}): string
   const syms = new Symbols();
   const kws = new Keywords();
 
+  // Names are handed out before anything renders, durable locators first.
+  // Otherwise a label someone brushed past takes ${BUG_TYPE} simply by being
+  // clicked earlier, and the button the test actually drives ends up as
+  // ${BUG_TYPE_2}. Order of appearance is a worse claim than durability.
+  const targets = rec.steps.flatMap((step) =>
+    step.kind === 'navigate' ? [] : [step.target, ...(step.wait.target ? [step.wait.target] : [])],
+  );
+  for (const target of targets.filter((t) => !toRobotLocator(t).fragile)) syms.forTarget(target);
+
   // Rendered first: laying out the steps is what populates the name tables.
   const calls = rec.steps.flatMap((step) => {
     const rendered = renderStep(step, syms, kws);

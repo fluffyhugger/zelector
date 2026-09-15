@@ -386,9 +386,22 @@ function provisionalWait(target: PickResult): WaitSpec {
 const sameElement = (a: PickResult, b: PickResult): boolean =>
   toRobotLocator(a).value === toRobotLocator(b).value;
 
-/** Biggest thing on screen wins — a modal beats the toast in its corner. */
-const mostProminent = (list: PickResult[]): PickResult | undefined =>
-  [...list].sort((a, b) => b.rect.width * b.rect.height - a.rect.width * a.rect.height)[0];
+/**
+ * Biggest thing on screen wins — a modal beats the toast in its corner — but
+ * only among the ones worth waiting on.
+ *
+ * A wait is only as good as its locator, and the largest element that appeared
+ * is often an anonymous wrapper. Waiting on `#bug-severity > span:nth-of-type(1)`
+ * works today and breaks the first time anyone touches that markup, while the
+ * panel two lines down usually has an id. Prefer something durable; fall back to
+ * the biggest only when nothing that appeared has a real handle on it.
+ */
+const mostProminent = (list: PickResult[]): PickResult | undefined => {
+  const byArea = [...list].sort(
+    (a, b) => b.rect.width * b.rect.height - a.rect.width * a.rect.height,
+  );
+  return byArea.find((p) => !toRobotLocator(p).fragile) ?? byArea[0];
+};
 
 export function inferWait(change: PageChange, ownTarget: PickResult): WaitSpec {
   const timeoutS = timeoutFor(change);
