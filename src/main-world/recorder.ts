@@ -21,8 +21,22 @@ import { emptyChange, timeoutFor, watchPageChange, type PageChange, type Watch }
 /** How long a typing burst can pause before it is flushed as its own step. */
 const TYPING_IDLE_MS = 700;
 
-/** A click on a span inside a button is a click on the button. */
-const INTERACTIVE = 'a,button,input,select,textarea,label,summary,[role="button"],[role="link"],[role="tab"],[role="menuitem"],[role="checkbox"],[role="radio"],[onclick],[tabindex]';
+/**
+ * A click on a span inside a button is a click on the button.
+ *
+ * The option roles matter as much as the button ones. Every headless combobox
+ * — Headless UI, Radix, MUI — renders its list inside the same wrapper as the
+ * control that opens it, so an option with no role of its own walks up past the
+ * list and lands on that control. The step then reads as a second click on the
+ * dropdown rather than a choice made inside it.
+ */
+const INTERACTIVE = [
+  'a', 'button', 'input', 'select', 'textarea', 'label', 'summary',
+  '[role="button"]', '[role="link"]', '[role="tab"]', '[role="checkbox"]', '[role="radio"]',
+  '[role="menuitem"]', '[role="menuitemradio"]', '[role="menuitemcheckbox"]',
+  '[role="option"]', '[role="treeitem"]', '[role="switch"]', '[role="combobox"]',
+  '[onclick]', '[tabindex]',
+].join(',');
 
 export interface RecorderCallbacks {
   /** Steps changed — re-render the panel and push the new state upstream. */

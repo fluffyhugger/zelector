@@ -21,7 +21,7 @@ import {
   type WaitKind,
   type WaitSpec,
 } from '@/core/recording';
-import { robotActionsFor } from '@/core/robot';
+import { robotActionsFor, toRobotLocator } from '@/core/robot';
 import { registerOwnHost, unregisterOwnHost } from './ignore';
 import { applyStyle, h, replace } from './dom-build';
 import { copy, download, robotFilename } from './deliver';
@@ -206,6 +206,26 @@ export class RecPanel {
       step.wait.reason
         ? h('div', { class: step.wait.provisional ? 'why guess' : 'why' }, `ⓘ ${step.wait.reason}`)
         : null,
+      this.renderFragile(step),
+    );
+  }
+
+  /**
+   * Said here rather than left as a comment in the downloaded file. By the time
+   * someone reads the file the page is gone; while recording they can still ask
+   * whoever owns that markup for a data-testid, which is the only real fix.
+   */
+  private renderFragile(step: RecordedStep): HTMLElement | null {
+    if (step.kind === 'navigate') return null;
+    const locator = toRobotLocator(step.target);
+    if (!locator.fragile) return null;
+
+    return h(
+      'div',
+      { class: 'fragile' },
+      h('span', { text: '⚠ ' }),
+      h('code', { text: locator.value }),
+      h('span', { text: ' — ask for a data-testid here' }),
     );
   }
 
@@ -424,6 +444,10 @@ select.kw { cursor: pointer; }
 
 .why { margin: 4px 0 0 25px; font-size: 10.5px; color: #6f6996; }
 .why.guess { color: #b08a4a; }
+
+.fragile { margin: 4px 0 0 25px; font-size: 10.5px; color: #e08a8a; }
+.fragile code { font: 10.5px ui-monospace, Menlo, monospace; color: #fca5a5;
+  background: #2e1c1c; padding: 1px 5px; border-radius: 3px; }
 
 .code {
   margin: 0; padding: 12px; background: #0f0d1f; flex: 1; overflow: auto;

@@ -28,6 +28,12 @@ export interface RobotLocator {
   strategy: 'id' | 'name' | 'data' | 'link' | 'class' | 'css' | 'xpath' | 'dom';
   /** Why this strategy, or what to watch out for. */
   note: string;
+  /**
+   * This locator is riding on something that changes when the page is restyled
+   * or reworded — a class, a link's text, a position in the tree. It works
+   * right now and will not survive much.
+   */
+  fragile: boolean;
   /** Frames to Select Frame into, outermost first. Empty in the top document. */
   frames: string[];
 }
@@ -78,6 +84,7 @@ function baseLocator(result: PickResult): Omit<RobotLocator, 'frames'> {
       strategy: 'dom',
       value: `dom:document.${chain}.querySelector('${leaf.replace(/'/g, "\\'")}')`,
       note: 'SeleniumLibrary has no shadow-DOM strategy — a dom: expression is the only way in',
+      fragile: false,
     };
   }
 
@@ -88,32 +95,62 @@ function baseLocator(result: PickResult): Omit<RobotLocator, 'frames'> {
         strategy: 'data',
         value: `data:${attr.slice('data-'.length)}:${v}`,
         note: 'dedicated test hook — the most durable locator available',
+        fragile: false,
       };
     }
   }
 
   const id = a['id'];
   if (id && safeForPrefix(id)) {
-    return { strategy: 'id', value: `id:${id}`, note: 'fastest for the browser to resolve' };
+    return { strategy: 'id', value: `id:${id}`, note: 'fastest for the browser to resolve', fragile: false };
   }
 
   const name = a['name'];
   if (name && safeForPrefix(name)) {
-    return { strategy: 'name', value: `name:${name}`, note: 'form field name — tied to the backend contract' };
+    return {
+      strategy: 'name',
+      value: `name:${name}`,
+      note: 'form field name — tied to the backend contract',
+      fragile: false,
+    };
   }
 
   if (tag === 'a' && result.text && result.text.length <= 60 && safeForPrefix(result.text)) {
-    return { strategy: 'link', value: `link:${result.text}`, note: '⚠ breaks on copy edits and in other locales' };
+    return {
+      strategy: 'link',
+      value: `link:${result.text}`,
+      note: '⚠ breaks on copy edits and in other locales',
+      fragile: true,
+    };
   }
 
   const css = cssFor(result);
   // A lone class is more readable as class: than as css:.
   const soleClass = /^[a-z]+\.([\w-]+)$/i.exec(css);
   if (soleClass?.[1] && safeForPrefix(soleClass[1])) {
-    return { strategy: 'class', value: `class:${soleClass[1]}`, note: '⚠ class-based — will not survive a redesign' };
+    return {
+      strategy: 'class',
+      value: `class:${soleClass[1]}`,
+      note: '⚠ class-based — will not survive a redesign',
+      fragile: true,
+    };
   }
 
-  return { strategy: 'css', value: `css:${css}`, note: 'no stable attribute found — consider asking for a data-testid' };
+  // A css: fallback is only as good as the candidate underneath it: an
+  // [aria-label] selector is fine, an nth-of-type chain is a countdown.
+  const candidate = bestCssCandidate(result);
+  return {
+    strategy: 'css',
+    value: `css:${css}`,
+    note: 'no stable attribute found — consider asking for a data-testid',
+    fragile: !candidate || candidate.kind === 'path' || candidate.score < 55,
+  };
+}
+
+function bestCssCandidate(result: PickResult) {
+  return result.candidates
+    .filter((c) => c.engine === 'css')
+    .sort((a, b) => b.score - a.score)[0];
 }
 
 /** Best CSS-expressible candidate, falling back to the tag name. */
