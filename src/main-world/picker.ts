@@ -233,6 +233,9 @@ export class Picker {
  */
 export function deepElementFromPoint(x: number, y: number): Element | null {
   let el = document.elementFromPoint(x, y);
+  // Our own panels are closed shadow roots, and our own attachShadow hook is
+  // what makes them walkable — so without this we happily descend into them.
+  if (isOwnNode(el)) return null;
   let guard = 0;
   while (el && guard++ < 32) {
     const root = shadowRootOf(el);

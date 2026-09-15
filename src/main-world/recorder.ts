@@ -13,7 +13,7 @@
  */
 import type { PickResult } from '@/core/types';
 import { toRobotLocator } from '@/core/robot';
-import type { RecordedStep, Recording, StepKind, WaitSpec } from '@/core/recording';
+import type { PanelPlacement, RecordedStep, Recording, StepKind, WaitSpec } from '@/core/recording';
 import { deepElementFromPoint, describe } from './picker';
 import { isOwnNode } from './ignore';
 import { emptyChange, timeoutFor, watchPageChange, type PageChange, type Watch } from './observer';
@@ -54,6 +54,7 @@ export class Recorder {
   private startUrl = '';
   private name = '';
   private doc = '';
+  private ui: PanelPlacement = {};
   /**
    * The picker is open. Its click listener is registered after ours, so without
    * this the click that picks an element to assert on is also recorded as a
@@ -91,7 +92,13 @@ export class Recorder {
       steps: this.steps,
       name: this.name,
       doc: this.doc,
+      ui: this.ui,
     };
+  }
+
+  setUi(ui: PanelPlacement): void {
+    this.ui = { ...this.ui, ...ui };
+    this.emit();
   }
 
   setName(name: string): void {
@@ -115,6 +122,7 @@ export class Recorder {
     this.startUrl = recording.startUrl;
     this.name = recording.name ?? '';
     this.doc = recording.doc ?? '';
+    this.ui = recording.ui ?? {};
     if (this.steps.length) {
       this.pending = {
         forIndex: this.steps.length,
@@ -220,9 +228,16 @@ export class Recorder {
 
   private onClick = (event: MouseEvent): void => {
     if (!this.capturing || isOwnNode(event.target)) return;
-    const raw = deepElementFromPoint(event.clientX, event.clientY)
-      ?? (event.target instanceof Element ? event.target : null);
-    if (!raw) return;
+
+    const fromEvent = event.target instanceof Element ? event.target : null;
+    // A click from the keyboard reports 0,0, and whatever sits in the corner of
+    // the viewport is not what was activated. Only trust the point when there
+    // is a real pointer behind it.
+    const pointed = event.clientX || event.clientY
+      ? deepElementFromPoint(event.clientX, event.clientY)
+      : null;
+    const raw = pointed ?? fromEvent;
+    if (!raw || isOwnNode(raw)) return;
 
     const el = resolveTarget(raw);
     this.flushTyping(el);

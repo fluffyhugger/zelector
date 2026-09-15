@@ -110,6 +110,20 @@ export interface Recording {
   name?: string;
   /** [Documentation] for the test case. Seeded with where and when. */
   doc?: string;
+  /**
+   * Where the panel sits and whether it is rolled up. Not part of the test —
+   * it rides along here because this is the one object that survives a
+   * navigation, and a panel that jumps back over the page on every page load
+   * is worse than one that cannot be moved at all.
+   */
+  ui?: PanelPlacement;
+}
+
+export interface PanelPlacement {
+  /** Viewport coordinates of the top-left corner. Absent means bottom-left. */
+  x?: number;
+  y?: number;
+  collapsed?: boolean;
 }
 
 export const emptyRecording = (startUrl = ''): Recording => ({

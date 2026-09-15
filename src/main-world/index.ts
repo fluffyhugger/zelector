@@ -61,6 +61,7 @@ const panel = new RecPanel({
     hud.hide();
     picker.start();
   },
+  onUi: (ui) => recorder.setUi(ui),
   onName: (name) => recorder.setName(name),
   onDoc: (doc) => recorder.setDoc(doc),
   onClear: () => recorder.clear(),

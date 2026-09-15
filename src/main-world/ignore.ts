@@ -15,8 +15,18 @@ export function unregisterOwnHost(el: Element): void {
 
 export function isOwnNode(target: EventTarget | null): boolean {
   if (!(target instanceof Node)) return false;
-  for (const host of ownHosts) {
-    if (host === target || host.contains(target)) return true;
+
+  // Walk out through any shadow boundaries first. contains() stops at one, and
+  // a node handed to us directly — rather than through an event, which would
+  // have been retargeted to the host — is otherwise unrecognisable as ours.
+  let node: Node | null = target;
+  let guard = 0;
+  while (node && guard++ < 32) {
+    for (const host of ownHosts) {
+      if (host === node || host.contains(node)) return true;
+    }
+    const root = node.getRootNode();
+    node = root instanceof ShadowRoot ? root.host : null;
   }
   return false;
 }

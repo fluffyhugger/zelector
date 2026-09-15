@@ -16,6 +16,7 @@ import {
   actionForStep,
   defaultDoc,
   toRobotSuite,
+  type PanelPlacement,
   type RecordedStep,
   type Recording,
   type WaitKind,
@@ -32,6 +33,7 @@ export interface RecPanelCallbacks {
   onStop(): void;
   /** Open the picker so an assertion can be appended to the flow. */
   onAddAssertion(): void;
+  onUi(ui: PanelPlacement): void;
   onName(name: string): void;
   onDoc(doc: string): void;
   onClear(): void;
@@ -45,6 +47,7 @@ export class RecPanel {
   private card: HTMLDivElement | null = null;
   private recording: Recording | null = null;
   private showCode = false;
+  private placement: PanelPlacement = {};
   /**
    * Closed by hand. Every recorder change calls show(), so without this any
    * stray emit after the close — a typing buffer flushing, an observer
@@ -59,7 +62,9 @@ export class RecPanel {
     if (this.dismissed && !recording.active) return;
     this.dismissed = false;
     this.recording = recording;
+    this.placement = recording.ui ?? {};
     this.mount();
+    this.applyPlacement();
     this.render();
   }
 
@@ -87,9 +92,31 @@ export class RecPanel {
     this.card = card;
   }
 
+  /** Absolute placement wins over the default bottom-left corner. */
+  private applyPlacement(): void {
+    const { card } = this;
+    if (!card) return;
+    const { x, y, collapsed } = this.placement;
+    card.classList.toggle('collapsed', !!collapsed);
+    if (x === undefined || y === undefined) return;
+
+    // Clamped on every apply, not just on drop: the window may have been
+    // resized, or this may be a narrower page than the one it was dragged on.
+    const width = card.offsetWidth || 460;
+    card.style.left = `${Math.max(0, Math.min(x, window.innerWidth - width))}px`;
+    card.style.top = `${Math.max(0, Math.min(y, window.innerHeight - 40))}px`;
+    card.style.right = 'auto';
+    card.style.bottom = 'auto';
+  }
+
   private render(): void {
     const { card, recording } = this;
     if (!card || !recording) return;
+
+    if (this.placement.collapsed) {
+      replace(card, this.renderHeader(recording));
+      return;
+    }
 
     replace(
       card,
@@ -102,18 +129,67 @@ export class RecPanel {
   }
 
   private renderHeader(rec: Recording): HTMLElement {
+    const collapsed = !!this.placement.collapsed;
     return h(
       'header',
-      {},
+      { on: { pointerdown: (event) => this.beginDrag(event as PointerEvent) } },
       h('span', { class: rec.active ? 'dot live' : 'dot', text: '●' }),
       h('span', { class: 'title', text: rec.active ? 'Recording' : 'Recorded' }),
       h('span', { class: 'count', text: `${rec.steps.length} step${rec.steps.length === 1 ? '' : 's'}` }),
+      h('button', {
+        class: 'icon',
+        text: collapsed ? '▣' : '—',
+        title: collapsed ? 'Expand' : 'Collapse to the title bar',
+        on: { click: () => this.setPlacement({ collapsed: !collapsed }) },
+      }),
       h('button', {
         class: 'stop',
         text: rec.active ? '⏹ Stop' : '✕ Close',
         on: { click: () => this.callbacks.onStop() },
       }),
     );
+  }
+
+  /**
+   * Drag by the header. Pointer capture rather than window listeners, so the
+   * page never sees the move — dragging the panel across a page that has its
+   * own drag handling should not start one.
+   */
+  private beginDrag(event: PointerEvent): void {
+    const { card } = this;
+    if (!card || event.button !== 0) return;
+    if (event.target instanceof HTMLButtonElement) return; // that is a click
+
+    const rect = card.getBoundingClientRect();
+    const offsetX = event.clientX - rect.left;
+    const offsetY = event.clientY - rect.top;
+    const header = event.currentTarget as HTMLElement;
+    header.setPointerCapture(event.pointerId);
+    card.classList.add('dragging');
+
+    const move = (e: PointerEvent): void => {
+      e.preventDefault();
+      this.placement = { ...this.placement, x: e.clientX - offsetX, y: e.clientY - offsetY };
+      this.applyPlacement();
+    };
+    const drop = (): void => {
+      header.removeEventListener('pointermove', move);
+      header.removeEventListener('pointerup', drop);
+      header.removeEventListener('pointercancel', drop);
+      card.classList.remove('dragging');
+      // Told upstream once, on drop — not on every pixel of the move.
+      this.callbacks.onUi(this.placement);
+    };
+    header.addEventListener('pointermove', move);
+    header.addEventListener('pointerup', drop);
+    header.addEventListener('pointercancel', drop);
+  }
+
+  private setPlacement(patch: PanelPlacement): void {
+    this.placement = { ...this.placement, ...patch };
+    this.applyPlacement();
+    this.render();
+    this.callbacks.onUi(this.placement);
   }
 
   /**
@@ -383,7 +459,17 @@ const STYLE = `
   border: 1px solid #2f2a4d; border-radius: 12px;
   box-shadow: 0 12px 48px rgba(0,0,0,.5);
 }
-header { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #2f2a4d; }
+header { display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  border-bottom: 1px solid #2f2a4d; cursor: grab; touch-action: none; user-select: none; }
+.panel.dragging { transition: none; }
+.panel.dragging header { cursor: grabbing; }
+.panel.collapsed { max-height: none; width: 300px; }
+.panel.collapsed header { border-bottom: 0; }
+header .icon {
+  background: none; border: 0; color: #8f89ad; cursor: pointer;
+  font-size: 12px; padding: 2px 5px; line-height: 1;
+}
+header .icon:hover { color: #fff; }
 header .dot { color: #56507a; font-size: 10px; }
 header .dot.live { color: #f87171; animation: pulse 1.4s ease-in-out infinite; }
 @keyframes pulse { 50% { opacity: .25; } }
