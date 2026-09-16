@@ -89,7 +89,10 @@ export function classify(token: string): Verdict {
  * the problem while they still have someone to ask for a data-testid.
  */
 export function isGeneratedId(id: string): boolean {
-  return /^(?:mat|cdk|ng|mdc|mui|pn|pv|rc)[-_][\w-]*\d/.test(id) || /^chakra-/.test(id);
+  return (
+    /^(?:mat|cdk|ng|mdc|mui|pn|pv|rc|react-select|downshift|headless)[-_][\w-]*\d/.test(id) ||
+    /^chakra-/.test(id)
+  );
 }
 
 export const isVolatile = (t: string) => classify(t).volatile;

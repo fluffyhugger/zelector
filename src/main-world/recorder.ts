@@ -326,6 +326,24 @@ export class Recorder {
   // ── Step construction ──────────────────────────────────────────────────────
 
   private push(partial: { kind: StepKind; target: PickResult; value?: string; keyword?: string }): void {
+    // A click on a <label> is delivered again, forwarded to the control, and a
+    // toggle reached that way reports the state on the way in before it reports
+    // the state it settled on. Either way it is one action, so the second
+    // arrival corrects the first rather than adding to it.
+    const previous = this.steps[this.steps.length - 1];
+    if (
+      previous &&
+      (partial.kind === 'click' || partial.kind === 'check') &&
+      previous.kind === partial.kind &&
+      Date.now() - previous.at < 400 &&
+      sameElement(previous.target, partial.target)
+    ) {
+      if (partial.keyword) previous.keyword = partial.keyword;
+      previous.at = Date.now();
+      this.emit();
+      return;
+    }
+
     const index = this.steps.length;
     // Close the window on the previous action first. Whatever the page does
     // from here belongs to this step, not the one before it.
@@ -406,6 +424,14 @@ function toggleKeyword(el: Element): { keyword?: string } {
   return { keyword: el.checked ? 'Select Checkbox' : 'Unselect Checkbox' };
 }
 
+/** Is this element the thing a click at its own centre would land on? */
+function isHitTestable(el: HTMLElement): boolean {
+  const rect = el.getBoundingClientRect();
+  if (rect.width < 1 || rect.height < 1) return false;
+  const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
+  return !!hit && (hit === el || el.contains(hit));
+}
+
 /** Something you type into, rather than press. */
 function isTextEntry(el: Element): boolean {
   if (el instanceof HTMLTextAreaElement) return true;
@@ -423,7 +449,12 @@ function resolveTarget(el: Element): Element {
   if (interactive) {
     if (interactive instanceof HTMLLabelElement) {
       const control = interactive.control ?? interactive.querySelector('input,select,textarea');
-      if (control instanceof Element) return control;
+      // Only hand over to the control if the control can actually be clicked.
+      // Every custom checkbox — Bootstrap, Tailwind, Material — leaves the real
+      // input underneath its label, so Select Checkbox aimed at the input gets
+      // "element click intercepted" while the person recording clicked the
+      // label and saw it work.
+      if (control instanceof HTMLElement && isHitTestable(control)) return control;
     }
     return interactive;
   }
