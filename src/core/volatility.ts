@@ -68,16 +68,25 @@ export function classify(token: string): Verdict {
  * Ids a component library hands out from a running counter: mat-select-0,
  * mat-option-72, cdk-overlay-3.
  *
- * These are not hashed and they do not change between runs — measured, on the
- * Angular Material docs, opening the same select in different orders gives the
- * same ids every time. What moves them is the page changing: the counter is
- * global and assigned in render order, so adding one component above shifts
- * every number below it. Positional, in other words, exactly like nth-child —
- * it just does not look like it.
+ * They are not hashed, and the number is not a name: the counter is global and
+ * handed out in render order, so it moves when anything renders before it.
+ * Positional, in other words, exactly like nth-child — it just does not look
+ * like it.
  *
- * Still usually the best locator available on such a page, so this does not
- * demote it. It marks it, so the person recording knows to ask for a
- * data-testid while they still have someone to ask.
+ * On a page that renders asynchronously it is worse than that, and not only
+ * across code changes. Measured on the Angular Material docs, three loads of
+ * the same URL: `mat-input-0` was `/Volvo/Saab/Mercedes` on the first and
+ * `Volvo/Saab/Mercedes/Audi` on the next two. Same page, same build, different
+ * element — because whichever example finishes rendering first takes the
+ * lower number.
+ *
+ * (An earlier note here claimed these were stable between runs. That came from
+ * measuring the wrong thing — the order dropdowns were opened in, rather than
+ * the page being loaded again.)
+ *
+ * Still usually the best locator a page like that offers, so this does not
+ * demote it into a structural path. It marks it, so the person recording sees
+ * the problem while they still have someone to ask for a data-testid.
  */
 export function isGeneratedId(id: string): boolean {
   return /^(?:mat|cdk|ng|mdc|mui|pn|pv|rc)[-_][\w-]*\d/.test(id) || /^chakra-/.test(id);
