@@ -16,12 +16,51 @@ function flash(button: HTMLElement, mark: string): void {
   }, 900);
 }
 
-export async function copy(text: string, button: HTMLElement): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(text);
+/**
+ * The old way first, deliberately.
+ *
+ * navigator.clipboard.writeText is the modern answer and it is the one that
+ * fails here: it is gated on the document being focused and on a
+ * Permissions-Policy the page controls, and it reports either by rejecting a
+ * promise — by which time the user gesture is over and there is no second
+ * chance. execCommand is deprecated and works: it is synchronous, so it runs
+ * inside the click that asked for it, and it does not care whose page this is.
+ */
+export function copy(text: string, button: HTMLElement): void {
+  if (execCopy(text)) {
     flash(button, '✓');
+    return;
+  }
+  navigator.clipboard?.writeText(text).then(
+    () => flash(button, '✓'),
+    () => flash(button, '✕'),
+  );
+}
+
+/**
+ * A textarea in the light DOM, selected and copied. It has to sit outside our
+ * closed shadow root: execCommand works on the document's selection, and a
+ * selection inside a closed root is not one the document can see.
+ */
+function execCopy(text: string): boolean {
+  const area = h('textarea', {
+    style: 'position:fixed;top:0;left:0;width:1px;height:1px;padding:0;border:0;opacity:0;',
+  });
+  area.value = text;
+  area.setAttribute('readonly', '');
+  const root = document.documentElement || document.body;
+  root.appendChild(area);
+
+  const previous = document.activeElement;
+  try {
+    area.select();
+    area.setSelectionRange(0, text.length);
+    return document.execCommand('copy');
   } catch {
-    flash(button, '✕'); // clipboard can be blocked without a user gesture
+    return false;
+  } finally {
+    area.remove();
+    if (previous instanceof HTMLElement) previous.focus({ preventScroll: true });
   }
 }
 

@@ -167,7 +167,7 @@ export class Hud {
       h('button', {
         class: 'copy-code',
         text: 'Copy code',
-        on: { click: (event) => void copy(code, event.currentTarget as HTMLElement) },
+        on: { click: (event) => copy(code, event.currentTarget as HTMLElement) },
       }),
     );
   }
@@ -204,7 +204,7 @@ function renderCandidate(c: SelectorCandidate): HTMLElement {
       class: 'cand-copy',
       text: '⧉',
       title: 'Copy',
-      on: { click: (event) => void copy(c.value, event.currentTarget as HTMLElement) },
+      on: { click: (event) => copy(c.value, event.currentTarget as HTMLElement) },
     }),
   );
 }

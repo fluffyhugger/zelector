@@ -405,7 +405,7 @@ export class RecPanel {
       h('button', {
         class: 'ghost',
         text: 'Copy',
-        on: { click: (event) => void copy(suite, event.currentTarget as HTMLElement) },
+        on: { click: (event) => copy(suite, event.currentTarget as HTMLElement) },
       }),
       h('button', {
         class: 'primary',
