@@ -331,6 +331,11 @@ function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedS
   // whether the thing you are about to click ever arrived. Holding that line
   // constant is also what lets a second click on the same button reuse the
   // keyword rather than fork a near-identical copy of it.
+  // A flow wait earns a line saying why it is there. The readiness waits do
+  // not — they are the same sentence every time — but a "wait for the spinner
+  // to clear" that someone has to judge months later is worth explaining, and
+  // it is the only way to tell a misplaced wait from a deliberate one.
+  const why = step.wait.reason ? `    # ${step.wait.reason}` : null;
   const readiness = isElementReadiness(step.wait, step.target);
   const inKeyword = readiness
     ? wait
@@ -341,7 +346,7 @@ function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedS
   // Frame block when it is not the frame the step itself acts in.
   const waitFramed = !readiness && wait && !!step.wait.target && framesKey(step.wait.target) !== '';
   const sameFrame = waitFramed && framesKey(step.wait.target!) === framesKey(step.target);
-  const pre = wait && !readiness && !waitFramed ? [wait] : [];
+  const pre = wait && !readiness && !waitFramed ? [...(why ? [why] : []), wait] : [];
   const framedWait = waitFramed && !sameFrame ? inFrames([wait!], step.wait.target!, syms) : [];
 
   if (!action.takesLocator) return renderRadioStep(step, action, syms, kws, inKeyword, pre, framedWait);
