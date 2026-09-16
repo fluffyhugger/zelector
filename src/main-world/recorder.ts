@@ -67,6 +67,12 @@ export class Recorder {
   private pending: { forIndex: number; change: PageChange } | null = null;
   /** The window still open on the last action's aftermath. */
   private watch: Watch | null = null;
+  /**
+   * What was under the pointer when it went down — which is what the person
+   * aimed at. By the time the click event arrives the page may have moved
+   * something else under the cursor.
+   */
+  private pressed: { el: Element; x: number; y: number; at: number } | null = null;
 
   constructor(private readonly callbacks: RecorderCallbacks) {}
 
@@ -239,7 +245,17 @@ export class Recorder {
    * last action and starts reacting to this one.
    */
   private onPointerDown = (event: PointerEvent): void => {
-    if (!this.capturing || isNotPageContent(event.target) || !this.watch) return;
+    if (!this.capturing || isNotPageContent(event.target)) return;
+
+    // Aim is taken here as well. A dropdown that opens on mousedown has its
+    // menu under the cursor before the click lands, so hit-testing then
+    // returns an option — and the step that opened the list is recorded as a
+    // second click on something inside it.
+    const el = deepElementFromPoint(event.clientX, event.clientY)
+      ?? (event.target instanceof Element ? event.target : null);
+    this.pressed = el ? { el, x: event.clientX, y: event.clientY, at: Date.now() } : null;
+
+    if (!this.watch) return;
     this.pending = { forIndex: this.steps.length, change: this.watch.settle() };
     this.watch = null;
   };
@@ -250,9 +266,9 @@ export class Recorder {
     const fromEvent = event.target instanceof Element ? event.target : null;
     // A click from the keyboard reports 0,0, and whatever sits in the corner of
     // the viewport is not what was activated. Only trust the point when there
-    // is a real pointer behind it.
+    // is a real pointer behind it — and prefer where that pointer went down.
     const pointed = event.clientX || event.clientY
-      ? deepElementFromPoint(event.clientX, event.clientY)
+      ? this.aimedAt(event) ?? deepElementFromPoint(event.clientX, event.clientY)
       : null;
     const raw = pointed ?? fromEvent;
     if (!raw || isNotPageContent(raw)) return;
@@ -325,6 +341,15 @@ export class Recorder {
     }
     if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) this.flushTyping();
   };
+
+  /** The press this click came from, if the pointer did not travel meanwhile. */
+  private aimedAt(event: MouseEvent): Element | null {
+    const pressed = this.pressed;
+    this.pressed = null;
+    if (!pressed || Date.now() - pressed.at > 2000) return null;
+    const moved = Math.abs(pressed.x - event.clientX) + Math.abs(pressed.y - event.clientY);
+    return moved <= 4 && pressed.el.isConnected ? pressed.el : null;
+  }
 
   private onFocusOut = (): void => {
     if (this.capturing) this.flushTyping();
