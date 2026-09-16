@@ -64,6 +64,25 @@ export function classify(token: string): Verdict {
   return { volatile: false, utility: false };
 }
 
+/**
+ * Ids a component library hands out from a running counter: mat-select-0,
+ * mat-option-72, cdk-overlay-3.
+ *
+ * These are not hashed and they do not change between runs — measured, on the
+ * Angular Material docs, opening the same select in different orders gives the
+ * same ids every time. What moves them is the page changing: the counter is
+ * global and assigned in render order, so adding one component above shifts
+ * every number below it. Positional, in other words, exactly like nth-child —
+ * it just does not look like it.
+ *
+ * Still usually the best locator available on such a page, so this does not
+ * demote it. It marks it, so the person recording knows to ask for a
+ * data-testid while they still have someone to ask.
+ */
+export function isGeneratedId(id: string): boolean {
+  return /^(?:mat|cdk|ng|mdc|mui|pn|pv|rc)[-_][\w-]*\d/.test(id) || /^chakra-/.test(id);
+}
+
 export const isVolatile = (t: string) => classify(t).volatile;
 export const isUseless = (t: string) => {
   const v = classify(t);

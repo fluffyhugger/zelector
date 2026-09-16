@@ -395,12 +395,22 @@ const BUTTON_INPUTS = new Set(['button', 'submit', 'reset', 'file', 'image']);
  * interactive ancestor, and for a <label>, the control it points at.
  */
 function resolveTarget(el: Element): Element {
-  const interactive = el.closest(INTERACTIVE) ?? el;
-  if (interactive instanceof HTMLLabelElement) {
-    const control = interactive.control ?? interactive.querySelector('input,select,textarea');
-    if (control instanceof Element) return control;
+  const interactive = el.closest(INTERACTIVE);
+  if (interactive) {
+    if (interactive instanceof HTMLLabelElement) {
+      const control = interactive.control ?? interactive.querySelector('input,select,textarea');
+      if (control instanceof Element) return control;
+    }
+    return interactive;
   }
-  return interactive;
+
+  // Nothing interactive above. A wrapper holding exactly one control is that
+  // control — Angular Material's form field is a stack of presentational divs
+  // around a single mat-select, and clicking the padding is how everyone opens
+  // it. Without this, a session on that page records a dozen steps against
+  // `class:mat-mdc-form-field-infix` and none against the thing it wraps.
+  const inside = el.querySelectorAll(INTERACTIVE);
+  return inside.length === 1 && inside[0] ? inside[0] : el;
 }
 
 // ── Wait inference ───────────────────────────────────────────────────────────

@@ -20,7 +20,7 @@
  *     the worst way for a test to fail.
  */
 import type { PickResult } from './types';
-import { isUseless } from './volatility';
+import { isGeneratedId, isUseless } from './volatility';
 
 export interface RobotLocator {
   /** e.g. "data:testid:confirm-order" */
@@ -102,7 +102,14 @@ function baseLocator(result: PickResult): Omit<RobotLocator, 'frames'> {
 
   const id = a['id'];
   if (id && safeForPrefix(id)) {
-    return { strategy: 'id', value: `id:${id}`, note: 'fastest for the browser to resolve', fragile: false };
+    return isGeneratedId(id)
+      ? {
+          strategy: 'id',
+          value: `id:${id}`,
+          note: '⚠ a component library counter, not a name — it shifts if anything renders above it',
+          fragile: true,
+        }
+      : { strategy: 'id', value: `id:${id}`, note: 'fastest for the browser to resolve', fragile: false };
   }
 
   const name = a['name'];
