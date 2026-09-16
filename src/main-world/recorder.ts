@@ -409,8 +409,15 @@ function resolveTarget(el: Element): Element {
   // around a single mat-select, and clicking the padding is how everyone opens
   // it. Without this, a session on that page records a dozen steps against
   // `class:mat-mdc-form-field-infix` and none against the thing it wraps.
-  const inside = el.querySelectorAll(INTERACTIVE);
-  return inside.length === 1 && inside[0] ? inside[0] : el;
+  const inside = [...el.querySelectorAll(INTERACTIVE)];
+  // Only the outermost ones: a control with something focusable inside it is
+  // still one control.
+  const outermost = inside.filter((c) => !inside.some((o) => o !== c && o.contains(c)));
+  // And a <label> sitting next to the control describes it rather than competing
+  // with it — Material's form field holds exactly that pair, which is why
+  // requiring a single candidate never fired there.
+  const controls = outermost.filter((c) => !(c instanceof HTMLLabelElement));
+  return controls.length === 1 && controls[0] ? controls[0] : el;
 }
 
 // ── Wait inference ───────────────────────────────────────────────────────────

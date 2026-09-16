@@ -132,40 +132,55 @@ function baseLocator(result: PickResult): Omit<RobotLocator, 'frames'> {
   }
 
   const css = cssFor(result);
-  // A lone class is more readable as class: than as css:.
+  const candidate = bestCssCandidate(result);
+  const ambiguous = !!candidate && candidate.matches !== 1;
+
+  // A lone class is more readable as class: than as css: — but only when it
+  // means one element.
   const soleClass = /^[a-z]+\.([\w-]+)$/i.exec(css);
   if (soleClass?.[1] && safeForPrefix(soleClass[1])) {
     return {
       strategy: 'class',
       value: `class:${soleClass[1]}`,
-      note: '⚠ class-based — will not survive a redesign',
+      note: ambiguous
+        ? `⚠ matches ${candidate?.matches} elements — Selenium will take the first one`
+        : '⚠ class-based — will not survive a redesign',
       fragile: true,
     };
   }
 
   // A css: fallback is only as good as the candidate underneath it: an
   // [aria-label] selector is fine, an nth-of-type chain is a countdown.
-  const candidate = bestCssCandidate(result);
   return {
     strategy: 'css',
     value: `css:${css}`,
-    note: 'no stable attribute found — consider asking for a data-testid',
-    fragile: !candidate || candidate.kind === 'path' || candidate.score < 55,
+    note: ambiguous
+      ? `⚠ matches ${candidate?.matches} elements — Selenium will take the first one`
+      : 'no stable attribute found — consider asking for a data-testid',
+    fragile: ambiguous || !candidate || candidate.kind === 'path' || candidate.score < 55,
   };
-}
-
-function bestCssCandidate(result: PickResult) {
-  return result.candidates
-    .filter((c) => c.engine === 'css')
-    .sort((a, b) => b.score - a.score)[0];
 }
 
 /** Best CSS-expressible candidate, falling back to the tag name. */
 function cssFor(result: PickResult): string {
+  return bestCssCandidate(result)?.value ?? result.tagName;
+}
+
+/**
+ * Highest-scoring candidate that actually picks out one element.
+ *
+ * Score alone is not enough. `class:mat-mdc-form-field-infix` scores
+ * respectably and matches twenty-one elements on the page it came from, so
+ * Selenium takes the first — some other field entirely — and the test fails
+ * somewhere else, or worse, quietly does the wrong thing. An ugly selector
+ * that means one element beats a readable one that means twenty; when nothing
+ * is unique the pick is marked fragile rather than dressed up.
+ */
+function bestCssCandidate(result: PickResult) {
   const css = result.candidates
     .filter((c) => c.engine === 'css')
-    .sort((a, b) => b.score - a.score)[0];
-  return css?.value ?? result.tagName;
+    .sort((a, b) => b.score - a.score);
+  return css.find((c) => c.matches === 1) ?? css[0];
 }
 
 export interface RobotAction {
