@@ -141,6 +141,7 @@ export class Recorder {
       // tested, and beats making everyone rename "Recorded Flow" by hand.
       this.name = this.name || titleCase(document.title);
     }
+    window.addEventListener('pointerdown', this.onPointerDown, true);
     window.addEventListener('click', this.onClick, true);
     window.addEventListener('input', this.onInput, true);
     window.addEventListener('change', this.onChange, true);
@@ -155,6 +156,7 @@ export class Recorder {
     this.watch?.settle();
     this.watch = null;
     this.active = false;
+    window.removeEventListener('pointerdown', this.onPointerDown, true);
     window.removeEventListener('click', this.onClick, true);
     window.removeEventListener('input', this.onInput, true);
     window.removeEventListener('change', this.onChange, true);
@@ -226,6 +228,22 @@ export class Recorder {
 
   // ── Capture ────────────────────────────────────────────────────────────────
 
+  /**
+   * An action begins when the pointer goes down, not when the click lands.
+   *
+   * Pressing a date field focuses it, and focusing it opens its calendar — all
+   * before the click event arrives. Closing the window at click time therefore
+   * credited the calendar to whatever came *before*, and the step that opens it
+   * was handed "wait until the calendar is showing" as its precondition. So the
+   * window closes here instead, at the moment the page stops reacting to the
+   * last action and starts reacting to this one.
+   */
+  private onPointerDown = (event: PointerEvent): void => {
+    if (!this.capturing || isNotPageContent(event.target) || !this.watch) return;
+    this.pending = { forIndex: this.steps.length, change: this.watch.settle() };
+    this.watch = null;
+  };
+
   private onClick = (event: MouseEvent): void => {
     if (!this.capturing || isNotPageContent(event.target)) return;
 
@@ -254,6 +272,12 @@ export class Recorder {
       this.push({ kind: 'click', target: describe(el), keyword: 'Click Element' });
       return;
     }
+
+    // Clicking the whitespace of a form or a section is not a step. Worse, it
+    // replays as a click on that container's centre — which is somewhere else
+    // entirely, and on the page this was found on, landed in a date field and
+    // left a calendar open over everything the rest of the flow needed.
+    if (STRUCTURAL.has(el.tagName)) return;
 
     const kind: StepKind = isToggle(el) ? 'check' : 'click';
     // A click on a checkbox also fires change; the change handler defers to this.
@@ -423,6 +447,16 @@ function toggleKeyword(el: Element): { keyword?: string } {
   if (!(el instanceof HTMLInputElement) || el.type !== 'checkbox') return {};
   return { keyword: el.checked ? 'Select Checkbox' : 'Unselect Checkbox' };
 }
+
+/**
+ * Containers a click never really means. Reached only when nothing interactive
+ * was found above or below the pointer, so a real widget built out of one of
+ * these is unaffected — it would have been resolved before getting here.
+ */
+const STRUCTURAL = new Set([
+  'HTML', 'BODY', 'FORM', 'MAIN', 'SECTION', 'ARTICLE', 'ASIDE',
+  'HEADER', 'FOOTER', 'NAV', 'UL', 'OL', 'TABLE', 'TBODY', 'THEAD', 'TR',
+]);
 
 /** Is this element the thing a click at its own centre would land on? */
 function isHitTestable(el: HTMLElement): boolean {
