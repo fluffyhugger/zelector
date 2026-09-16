@@ -38,27 +38,55 @@ export function copy(text: string, button: HTMLElement): void {
 }
 
 /**
- * A textarea in the light DOM, selected and copied. It has to sit outside our
- * closed shadow root: execCommand works on the document's selection, and a
- * selection inside a closed root is not one the document can see.
+ * A textarea in the light DOM, selected and copied.
+ *
+ * It has to sit outside our closed shadow root: execCommand works on the
+ * document's selection, and a selection inside a closed root is not one the
+ * document can see.
+ *
+ * Two things the page can do to break this, and both are done by real sites:
+ *
+ * `user-select: none` applied broadly means select() produces no selection and
+ * execCommand has nothing to copy — so the rule is overridden on our own
+ * element, with !important, because that is what it is competing with.
+ *
+ * And a page may listen for the copy event and replace or cancel it. Ours
+ * listens first, in the capture phase, writes the text straight onto the
+ * clipboard and stops the event there. That also means the copied text never
+ * depends on what the selection actually contains.
  */
 function execCopy(text: string): boolean {
-  const area = h('textarea', {
-    style: 'position:fixed;top:0;left:0;width:1px;height:1px;padding:0;border:0;opacity:0;',
-  });
+  const area = h('textarea');
+  for (const [prop, value] of [
+    ['position', 'fixed'], ['top', '0'], ['left', '0'],
+    ['width', '1px'], ['height', '1px'], ['padding', '0'], ['border', '0'],
+    ['opacity', '0'], ['user-select', 'text'], ['-webkit-user-select', 'text'],
+  ]) {
+    area.style.setProperty(prop!, value!, 'important');
+  }
   area.value = text;
   area.setAttribute('readonly', '');
-  const root = document.documentElement || document.body;
-  root.appendChild(area);
+  (document.documentElement || document.body).appendChild(area);
+
+  const onCopy = (event: Event): void => {
+    const clipboardData = (event as ClipboardEvent).clipboardData;
+    if (!clipboardData) return;
+    clipboardData.setData('text/plain', text);
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
 
   const previous = document.activeElement;
+  document.addEventListener('copy', onCopy, true);
   try {
+    area.focus({ preventScroll: true });
     area.select();
     area.setSelectionRange(0, text.length);
     return document.execCommand('copy');
   } catch {
     return false;
   } finally {
+    document.removeEventListener('copy', onCopy, true);
     area.remove();
     if (previous instanceof HTMLElement) previous.focus({ preventScroll: true });
   }
