@@ -271,7 +271,15 @@ export function robotActionsFor(result: PickResult): RobotAction[] {
       case 'reset':
         return [act('Click Button', { verb: 'Click' }), ENABLED, DISABLED];
       default:
-        return [act('Input Text', { verb: 'Fill', argument: '${TEXT}' }), VALUE_IS, CLEAR, DISABLED];
+        // Click Element belongs here because clicking a field is sometimes the
+        // action: a date input opens a picker rather than taking a caret.
+        return [
+          act('Input Text', { verb: 'Fill', argument: '${TEXT}' }),
+          VALUE_IS,
+          CLEAR,
+          act('Click Element', { verb: 'Click' }),
+          DISABLED,
+        ];
     }
   }
   return [act('Click Element', { verb: 'Click' }), TEXT_IS, CONTAINS];
@@ -378,7 +386,9 @@ export function variableName(result: PickResult): string {
     a['id'] ??
     a['name'] ??
     a['aria-label'] ??
-    (result.text.split(/\s+/).slice(0, 3).join(' ') || undefined) ??
+    // A <select>'s textContent is every option run together, which names it
+    // ${JANUARYFEBRUARYMARCH…DECEMBER}. Its options are not its identity.
+    (result.tagName === 'select' ? undefined : textName(result.text)) ??
     // A spinner has none of the above but usually says what it is in a class.
     // ${LOADING_SPINNER} beats ${DIV} in a suite someone has to read.
     identifyingClass(a['class']) ??
@@ -392,6 +402,12 @@ export function variableName(result: PickResult): string {
     .toUpperCase();
 
   return cleaned || `${result.tagName.toUpperCase()}_TARGET`;
+}
+
+/** The first few words of an element's text, if that is short enough to be a name. */
+function textName(text: string): string | undefined {
+  const words = text.trim().split(/\s+/).slice(0, 3).join(' ');
+  return words && words.length <= 40 ? words : undefined;
 }
 
 /** The first class that names the thing rather than styling it. */

@@ -242,10 +242,18 @@ export class Recorder {
     const el = resolveTarget(raw);
     this.flushTyping(el);
 
-    // Clicking into a field is not an action, it is aiming. The typing that
-    // follows is the step — and recording the click as well produced an
-    // Input Text with no value to type, right before the real one.
-    if (isTextEntry(el) || el instanceof HTMLSelectElement) return;
+    if (el instanceof HTMLSelectElement) return; // the change event is the step
+
+    // Clicking a field is usually aiming rather than acting, and recording it
+    // as well used to produce an Input Text with nothing to type right before
+    // the real one. But it is not always aiming: a date input opens a picker,
+    // and dropping that click left the recording clicking a day in a calendar
+    // that had never been opened. So the click is kept, and thrown away later
+    // if typing into the same field turns out to follow it.
+    if (isTextEntry(el)) {
+      this.push({ kind: 'click', target: describe(el), keyword: 'Click Element' });
+      return;
+    }
 
     const kind: StepKind = isToggle(el) ? 'check' : 'click';
     // A click on a checkbox also fires change; the change handler defers to this.
@@ -275,9 +283,19 @@ export class Recorder {
       return;
     }
     if (el instanceof HTMLInputElement && isToggle(el)) {
-      // The click handler already recorded this one.
       const last = this.steps[this.steps.length - 1];
-      if (last?.kind === 'check' && Date.now() - last.at < 400) return;
+      if (last?.kind === 'check' && Date.now() - last.at < 400) {
+        // The click handler already recorded this one — but a click routed
+        // through a <label> reaches us before the control has flipped, so what
+        // it wrote down is the state on the way in. change fires afterwards and
+        // knows which way it went; take its word for it.
+        const settled = toggleKeyword(el).keyword;
+        if (settled && last.keyword !== settled) {
+          last.keyword = settled;
+          this.emit();
+        }
+        return;
+      }
       this.push({ kind: 'check', target: describe(el), ...toggleKeyword(el) });
       return;
     }
@@ -296,6 +314,12 @@ export class Recorder {
     if (nextTarget && nextTarget === typing.el) return;
     this.typing = null;
     if (!typing.value) return;
+
+    // The click that put the caret here was aiming after all.
+    const last = this.steps[this.steps.length - 1];
+    if (last?.kind === 'click' && sameElement(last.target, typing.target)) {
+      this.steps.pop();
+    }
     this.push({ kind: 'input', target: typing.target, value: typing.value });
   }
 
