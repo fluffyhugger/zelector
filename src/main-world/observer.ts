@@ -36,6 +36,12 @@ export interface PageChange {
   requests: CapturedResponse[];
   /** Set when the document navigated or the SPA route changed. */
   url?: string;
+  /**
+   * Nodes were swapped out for lookalikes — a framework rebuilding a list.
+   * Nothing new to wait for, and the next click may land mid-commit, which is
+   * worth saying out loud rather than papering over.
+   */
+  rerendered: boolean;
   elapsedMs: number;
 }
 
@@ -43,8 +49,19 @@ export const emptyChange = (): PageChange => ({
   appeared: [],
   transient: [],
   requests: [],
+  rerendered: false,
   elapsedMs: 0,
 });
+
+/**
+ * Enough to tell "this row came back" from "this dialog arrived". Deliberately
+ * cheap: it runs for every node a busy page takes out.
+ */
+function identity(el: Element): string {
+  const attrs = el.attributes;
+  const test = el.getAttribute('data-testid') ?? el.getAttribute('data-test') ?? '';
+  return `${el.tagName}#${el.id}[${test}].${el.className}:${attrs.length}`;
+}
 
 function isVisible(el: Element): boolean {
   if (!el.isConnected) return false;
@@ -73,6 +90,17 @@ export function watchPageChange(onQuiet: (change: PageChange) => void): Watch {
 
   /** Elements seen appearing, still attached as far as we know. */
   const pending = new Set<Element>();
+  /**
+   * What was taken out of the page during the window.
+   *
+   * A framework re-rendering a list removes each row and adds a new node in its
+   * place, and the new one looks exactly like an arrival. It is not: the thing
+   * was already on screen, so waiting for it to be visible waits for nothing
+   * and passes instantly. Measured on a sorted product list — the generated
+   * wait let the next click land while React was still committing, and the
+   * click went nowhere.
+   */
+  const removed = new Set<string>();
   /** Described at the moment they left, while their attributes were still readable. */
   const transient: PickResult[] = [];
 
@@ -88,6 +116,7 @@ export function watchPageChange(onQuiet: (change: PageChange) => void): Watch {
 
   const retire = (node: Node): void => {
     if (!(node instanceof Element)) return;
+    if (!isOwnNode(node)) removed.add(identity(node));
     // Only elements we saw appear — a page tearing down its old view on
     // navigation would otherwise flood this with everything it removed.
     if (!pending.has(node)) return;
@@ -114,13 +143,18 @@ export function watchPageChange(onQuiet: (change: PageChange) => void): Watch {
     clearTimeout(hardStop);
     observer.disconnect();
 
-    const appeared = [...pending].filter(isVisible).map(describe);
+    const visible = [...pending].filter(isVisible);
+    // Anything matching something removed in the same window came back rather
+    // than arrived, and is no use as a thing to wait for.
+    const arrivals = visible.filter((el) => !removed.has(identity(el)));
+    const appeared = arrivals.map(describe);
     const url = location.href !== startUrl ? location.href : undefined;
     settled = {
       appeared,
       transient,
       requests: capturedResponses.slice(requestMark),
       ...(url ? { url } : {}),
+      rerendered: arrivals.length < visible.length,
       elapsedMs: performance.now() - startedAt,
     };
     if (quiet) onQuiet(settled);

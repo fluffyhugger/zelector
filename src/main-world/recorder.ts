@@ -514,7 +514,9 @@ export function inferWait(change: PageChange, ownTarget: PickResult): WaitSpec {
     kind: 'visible',
     target: ownTarget,
     timeoutS,
-    reason: 'the page did not react — just checking the target is there',
+    reason: change.rerendered
+      ? 'the list was rebuilt in place — nothing new to wait for, so this step can race the redraw'
+      : 'the page did not react — just checking the target is there',
   };
 }
 
