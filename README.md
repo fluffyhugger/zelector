@@ -58,7 +58,10 @@ anyone reading a generated suite six months later actually has.
 
 Output is a full suite: one keyword per element, each waiting for its own
 element, with the flow-level waits left visible in the test case. Clicking the
-same button twice defines one keyword, not two.
+same button twice defines one keyword, not two. It opens with
+`Maximize Browser Window`, because a default-sized window puts anything below
+the fold under a sticky footer and Selenium then reports "element click
+intercepted" for a page that works perfectly by hand.
 
 ## Install (dev)
 

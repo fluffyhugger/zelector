@@ -492,6 +492,12 @@ export function toRobotSuite(rec: Recording, options: SuiteOptions = {}): string
     testName,
     `    [Documentation]    ${doc}`,
     `    Open Browser    ${v(startVar)}    ${v(browserVar)}`,
+    // Not decoration. A default browser window is small enough that anything
+    // below the fold scrolls under a sticky header or footer, and Selenium
+    // reports "element click intercepted" from a page that works by hand.
+    // Measured on DemoQA: the same suite fails at a checkbox without this and
+    // passes with it.
+    '    Maximize Browser Window',
     ...calls,
     '    [Teardown]    Close Browser',
     '',
