@@ -63,6 +63,25 @@ function identity(el: Element): string {
   return `${el.tagName}#${el.id}[${test}].${el.className}:${attrs.length}`;
 }
 
+/**
+ * A disappearance that is still on screen was a replacement, not an exit.
+ *
+ * The mirror of the arrival check. A form that re-renders on every keystroke
+ * takes its heading out and puts an identical one back, and the one taken out
+ * looks exactly like a spinner clearing — which is how a step came to wait for
+ * `data:test:title` to stop being visible on a page that shows it throughout.
+ */
+function stillOnScreen(result: PickResult): boolean {
+  const css = result.candidates.find((c) => c.engine === 'css')?.value;
+  if (!css) return false;
+  try {
+    const found = document.querySelector(css);
+    return !!found && isVisible(found);
+  } catch {
+    return false; // a selector the page will not accept tells us nothing
+  }
+}
+
 function isVisible(el: Element): boolean {
   if (!el.isConnected) return false;
   const rect = el.getBoundingClientRect();
@@ -148,13 +167,15 @@ export function watchPageChange(onQuiet: (change: PageChange) => void): Watch {
     // than arrived, and is no use as a thing to wait for.
     const arrivals = visible.filter((el) => !removed.has(identity(el)));
     const appeared = arrivals.map(describe);
+    // And anything that "left" but is on screen right now never left.
+    const departures = transient.filter((p) => !stillOnScreen(p));
     const url = location.href !== startUrl ? location.href : undefined;
     settled = {
       appeared,
-      transient,
+      transient: departures,
       requests: capturedResponses.slice(requestMark),
       ...(url ? { url } : {}),
-      rerendered: arrivals.length < visible.length,
+      rerendered: arrivals.length < visible.length || departures.length < transient.length,
       elapsedMs: performance.now() - startedAt,
     };
     if (quiet) onQuiet(settled);
