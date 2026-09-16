@@ -8,7 +8,9 @@
  */
 
 const GENERATED_PATTERNS: Array<[RegExp, string]> = [
-  [/^css-[a-z0-9]{5,}$/i,              'emotion/styled generated class'],
+  // Emotion labels its output when the babel plugin is on: css-1nmdiq5-menu,
+  // css-1dimb5e-singleValue. The hash is still the whole of the identity.
+  [/^css-[a-z0-9]{5,}(?:-[\w-]+)?$/i, 'emotion/styled generated class'],
   [/^sc-[a-zA-Z0-9]{5,}$/,             'styled-components generated class'],
   [/^jss\d+$/,                          'JSS generated class'],
   [/^makeStyles-/,                      'MUI makeStyles generated class'],
