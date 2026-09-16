@@ -46,8 +46,10 @@ export function isOwnNode(target: EventTarget | null): boolean {
  * append absolutely-positioned custom elements to the body.
  */
 const FOREIGN = [
-  // Google Translate
-  'gtx-trans', '#gtx-trans', '.gtx-trans-icon', '.skiptranslate',
+  // Google Translate. Not `.skiptranslate`: that is a class pages put on their
+  // own markup to opt out of translation, so matching it hands whole sections
+  // of a perfectly ordinary site to this list.
+  'gtx-trans', '#gtx-trans', '.gtx-trans-icon', 'font[_msttexthash]',
   // Grammarly
   'grammarly-extension', 'grammarly-desktop-integration', '[data-grammarly-shadow-root]',
   // LastPass
