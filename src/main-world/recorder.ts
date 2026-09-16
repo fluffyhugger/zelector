@@ -15,7 +15,7 @@ import type { PickResult } from '@/core/types';
 import { toRobotLocator } from '@/core/robot';
 import type { PanelPlacement, RecordedStep, Recording, StepKind, WaitSpec } from '@/core/recording';
 import { deepElementFromPoint, describe } from './picker';
-import { isOwnNode } from './ignore';
+import { isNotPageContent } from './ignore';
 import { emptyChange, timeoutFor, watchPageChange, type PageChange, type Watch } from './observer';
 
 /** How long a typing burst can pause before it is flushed as its own step. */
@@ -227,7 +227,7 @@ export class Recorder {
   // ── Capture ────────────────────────────────────────────────────────────────
 
   private onClick = (event: MouseEvent): void => {
-    if (!this.capturing || isOwnNode(event.target)) return;
+    if (!this.capturing || isNotPageContent(event.target)) return;
 
     const fromEvent = event.target instanceof Element ? event.target : null;
     // A click from the keyboard reports 0,0, and whatever sits in the corner of
@@ -237,7 +237,7 @@ export class Recorder {
       ? deepElementFromPoint(event.clientX, event.clientY)
       : null;
     const raw = pointed ?? fromEvent;
-    if (!raw || isOwnNode(raw)) return;
+    if (!raw || isNotPageContent(raw)) return;
 
     const el = resolveTarget(raw);
     this.flushTyping(el);
@@ -261,7 +261,7 @@ export class Recorder {
   };
 
   private onInput = (event: Event): void => {
-    if (!this.capturing || isOwnNode(event.target)) return;
+    if (!this.capturing || isNotPageContent(event.target)) return;
     const el = event.target;
     if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return;
     if (isToggle(el)) return;
@@ -274,7 +274,7 @@ export class Recorder {
   };
 
   private onChange = (event: Event): void => {
-    if (!this.capturing || isOwnNode(event.target)) return;
+    if (!this.capturing || isNotPageContent(event.target)) return;
     const el = event.target;
     if (el instanceof HTMLSelectElement) {
       this.flushTyping();

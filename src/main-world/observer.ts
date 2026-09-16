@@ -18,7 +18,7 @@
  */
 import type { PickResult } from '@/core/types';
 import { capturedResponses, type CapturedResponse } from './hooks';
-import { isOwnNode } from './ignore';
+import { isNotPageContent, isOwnNode } from './ignore';
 import { describe } from './picker';
 
 /** Stop waiting once the DOM has been still for this long. */

@@ -1,7 +1,8 @@
 /**
- * Nodes belonging to Zelector itself. The picker must never highlight its own
- * overlay, and the freeze blocker must never swallow clicks on its own panel.
- * Both UIs use closed shadow roots, so `contains()` on the host is enough.
+ * Nodes that are not the page's business — ours, and other extensions'.
+ *
+ * The picker must never highlight its own overlay, and the freeze blocker must
+ * never swallow clicks on its own panel.
  */
 const ownHosts = new Set<Element>();
 
@@ -29,4 +30,45 @@ export function isOwnNode(target: EventTarget | null): boolean {
     node = root instanceof ShadowRoot ? root.host : null;
   }
   return false;
+}
+
+/**
+ * Markup another extension put there.
+ *
+ * A recording made with Google Translate running came back waiting for
+ * `id:gtx-trans` to be visible, which it never is anywhere else — the suite
+ * failed on the first clean browser it met. Grammarly, the password managers
+ * and the shopping extensions all decorate pages the same way, and none of it
+ * belongs in a test of the page.
+ *
+ * A list rather than a heuristic, because there is no honest way to tell
+ * injected markup from a page's own without one: plenty of sites legitimately
+ * append absolutely-positioned custom elements to the body.
+ */
+const FOREIGN = [
+  // Google Translate
+  'gtx-trans', '#gtx-trans', '.gtx-trans-icon', '.skiptranslate',
+  // Grammarly
+  'grammarly-extension', 'grammarly-desktop-integration', '[data-grammarly-shadow-root]',
+  // LastPass
+  '[data-lastpass-icon-root]', '[data-lastpass-root]', '[id^="__lpform"]',
+  // 1Password, Dashlane, Bitwarden
+  'com-1password-button', '[data-com-onepassword-filled]',
+  '[data-dashlane-rid]', '[data-dashlane-label]', '[data-bw-watermark]',
+  // Honey, MetaMask, Loom
+  '#honeyContainer', '#metamask-extension', '[id^="loom-"]',
+].join(',');
+
+export function isForeignNode(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  try {
+    return !!target.closest(FOREIGN);
+  } catch {
+    return false; // a selector this engine dislikes should not stop a recording
+  }
+}
+
+/** Ours, or another extension's — either way, not part of the page under test. */
+export function isNotPageContent(target: EventTarget | null): boolean {
+  return isOwnNode(target) || isForeignNode(target);
 }
