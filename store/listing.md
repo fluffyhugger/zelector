@@ -17,6 +17,9 @@ Zelector — XPath & CSS Selector Finder + Robot Framework Recorder
 Record a flow or pick any element — shadow DOM included — and export stable locators to Robot Framework, Selenium or Playwright.
 ```
 
+(128 characters. Selenium is named because SeleniumLibrary is what Robot drives
+and because Selenium users are half the audience.)
+
 ## Category
 
 Developer Tools
@@ -26,12 +29,21 @@ Developer Tools
 ## Detailed description
 
 ```
-Record what you do on a page and get a Robot Framework suite that runs.
+For Robot Framework and Selenium: record what you do on a page and get a suite
+that runs.
 
 Recorders are not new. What they emit usually is not worth keeping: nth-child
 selectors that break when someone adds a div, and Sleep 2 everywhere because
 the recorder had no idea what it was waiting for. Zelector is an attempt at the
 two things that actually decide whether a recorded test survives.
+
+Built against the SeleniumLibrary documentation rather than from memory, which
+shows in the details: locators use the strategy:value prefix form, the keyword
+follows the element — Click Button also matches on value, Click Link on href
+and link text — and Select Radio Button gets the group name and value it
+actually takes rather than a locator that would fail at run time. Selenium
+users working in Python or Java get the same locator scoring, and By.ID is
+chosen over By.CSS_SELECTOR when the element supports it.
 
 WAITS THAT MEAN SOMETHING
 
@@ -65,10 +77,12 @@ THINGS THAT USUALLY GET IN THE WAY
 - Freeze the DOM to keep a hover menu or a popover open while you inspect it.
 - Recording survives navigation, so a login or a checkout records as one flow.
 
-ALSO EXPORTS TO
+ALSO COPIES A SELECTOR AS
 
-Playwright (TypeScript and Python), Selenium (Python and Java), Puppeteer,
-Cypress, plain CSS, XPath, and JSON.
+Playwright (TypeScript and Python), Puppeteer, Cypress, plain CSS, XPath and
+JSON — one element at a time, for when you are inspecting rather than
+recording. Recording produces a Robot Framework suite; Playwright has codegen
+built in and does its own waiting, so there is nothing here it needs.
 
 PRIVACY
 

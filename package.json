@@ -20,7 +20,9 @@
     "typecheck": "tsc --noEmit",
     "test:robot": "node scripts/test-robot.mjs",
     "build:store": "node build.mjs --store",
-    "zip": "npm run build:store && node scripts/zip.mjs"
+    "zip": "npm run build:store && node scripts/zip.mjs",
+    "test:exports": "node scripts/test-exports.mjs",
+    "test": "npm run typecheck && npm run test:exports && npm run test:robot"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268",
