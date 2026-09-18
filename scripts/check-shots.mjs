@@ -17,25 +17,33 @@ if (!shots.length) {
   process.exit(0);
 }
 
-const size = (file) => {
-  const out = execFileSync('sips', ['-g', 'pixelWidth', '-g', 'pixelHeight', file], { encoding: 'utf8' });
-  const w = /pixelWidth: (\d+)/.exec(out)?.[1];
-  const h = /pixelHeight: (\d+)/.exec(out)?.[1];
-  return [Number(w), Number(h)];
+const probe = (file) => {
+  const out = execFileSync('sips',
+    ['-g', 'pixelWidth', '-g', 'pixelHeight', '-g', 'hasAlpha', file], { encoding: 'utf8' });
+  return {
+    w: Number(/pixelWidth: (\d+)/.exec(out)?.[1]),
+    h: Number(/pixelHeight: (\d+)/.exec(out)?.[1]),
+    alpha: /hasAlpha: yes/.test(out),
+  };
 };
+const size = (file) => { const p = probe(file); return [p.w, p.h]; };
 
 let wrong = 0;
 for (const [i, name] of shots.entries()) {
-  const [w, h] = size(path.join(dir, name));
-  const ok = (w === 1280 && h === 800) || (w === 640 && h === 400);
+  const { w, h, alpha } = probe(path.join(dir, name));
+  const rightSize = (w === 1280 && h === 800) || (w === 640 && h === 400);
+  // The store takes 24-bit only. A screen capture on a Mac is RGBA, and the
+  // upload is refused with nothing said about which of the two rules broke.
+  const ok = rightSize && !alpha;
   if (!ok) wrong += 1;
-  console.log(`${ok ? 'ok  ' : 'FIX '} ${i + 1}. ${name}  ${w}x${h}`);
+  const why = [rightSize ? null : 'wrong size', alpha ? 'has alpha' : null].filter(Boolean).join(', ');
+  console.log(`${ok ? 'ok  ' : 'FIX '} ${i + 1}. ${name}  ${w}x${h}${why ? `  — ${why}` : ''}`);
 }
 
 if (shots.length > 5) console.log(`\n${shots.length} images — the store takes five.`);
 console.log(
   wrong
-    ? `\n${wrong} to resize: node scripts/check-shots.mjs --fix`
+    ? `\n${wrong} not uploadable. Resize with --fix; strip alpha with\n  sips -s format jpeg -s formatOptions best FILE.png --out FILE.jpg`
     : '\nAll uploadable.',
 );
 
