@@ -364,8 +364,21 @@ export class Recorder {
     this.typing = null;
     if (!typing.value) return;
 
-    // The click that put the caret here was aiming after all.
     const last = this.steps[this.steps.length - 1];
+
+    // Still the same field, and nothing has happened in between — anything else
+    // would have pushed a step of its own. This is one person filling in one
+    // box, however many times they paused to think. Otherwise a slow typist
+    // gets Fill Username "s", then "standar", then "standard_user", all of
+    // which replay as a full retype of the field.
+    if (last?.kind === 'input' && sameElement(last.target, typing.target)) {
+      last.value = typing.value;
+      last.at = Date.now();
+      this.emit();
+      return;
+    }
+
+    // The click that put the caret here was aiming after all.
     if (last?.kind === 'click' && sameElement(last.target, typing.target)) {
       this.steps.pop();
     }
