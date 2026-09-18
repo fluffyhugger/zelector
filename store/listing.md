@@ -129,6 +129,24 @@ decides they want it. There is also no way to know in advance which site a
 tester will need to work on. No data is transmitted anywhere.
 ```
 
+## Remote code
+
+Answer: **No, I am not using remote code.**
+
+```
+No remote code is used. Everything this extension runs ships inside the
+uploaded package. It loads no script from any server, calls neither eval nor
+new Function on fetched content, and makes no network requests of any kind.
+
+The hooks it installs on Element.prototype.attachShadow, fetch and
+XMLHttpRequest wrap functions the page already has so that closed shadow roots
+can be inspected and request timings can be read. They run only code contained
+in this package; they neither fetch nor execute anything from elsewhere.
+```
+
+(The last paragraph is there because a reviewer seeing `fetch` patched will
+want to know whether anything is being pulled in. It is not.)
+
 ## Data collection
 
 Nothing in any category. Google's definition of collection is transmitting data
