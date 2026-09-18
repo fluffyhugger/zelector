@@ -246,7 +246,11 @@ export class RecPanel {
     const action = actionForStep(step);
     const alternatives = robotActionsFor(step.target);
 
-    const fixed = step.kind === 'navigate' ? 'Go To' : step.kind === 'dialog' ? dialogKeyword(step) : null;
+    const fixed =
+      step.kind === 'navigate' ? 'Go To'
+      : step.kind === 'dialog' ? dialogKeyword(step)
+      : step.kind === 'key' ? 'Press Keys'
+      : null;
     const keywordPicker = fixed
       ? h('span', { class: 'kw', text: fixed })
       : h(

@@ -31,6 +31,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 
 ROOT = Path(__file__).resolve().parent.parent
 PAGES = ROOT / "scripts" / "capture" / "pages"
@@ -119,6 +120,23 @@ def dialogs(driver):
     time.sleep(0.8)
 
 
+def enter_key(driver):
+    field = driver.find_element(By.ID, "q")
+    field.click()
+    field.send_keys("shoes")
+    field.send_keys(Keys.RETURN)
+    time.sleep(1.2)
+
+
+def upload(driver):
+    sample = Path(tempfile.gettempdir()) / "zelector-sample.png"
+    sample.write_bytes(b"\x89PNG\r\n\x1a\n")
+    # send_keys on a file input is how WebDriver sets one; it fires change the
+    # same way choosing a file does.
+    driver.find_element(By.ID, "avatar").send_keys(str(sample))
+    time.sleep(1.2)
+
+
 def checkbox(driver):
     label = driver.find_element(By.CSS_SELECTOR, "label[for=agree]")
     label.click()
@@ -199,6 +217,27 @@ CASES = [
             (len(s) == 6, f"expected six steps, got {len(s)}: {[x['keyword'] for x in s]}"),
             ([x["keyword"] for x in s][1::2] == ["Handle Alert", "Handle Alert", "Input Text Into Alert"],
              f"dialog steps came out as {[x['keyword'] for x in s][1::2]}"),
+        ],
+    ),
+    Case(
+        "pressing Enter is the step that acts",
+        "enter.html", enter_key,
+        lambda s: [
+            (len(s) == 2, f"expected two steps, got {len(s)}: {[x['keyword'] for x in s]}"),
+            (s and s[0]["keyword"] == "Input Text" and s[0].get("value") == "shoes",
+             f"the typing came out as {s[0] if s else None}"),
+            (len(s) > 1 and s[1]["keyword"] == "Press Keys" and s[1].get("value") == "RETURN",
+             f"the press came out as {s[1] if len(s) > 1 else None}"),
+        ],
+    ),
+    Case(
+        "a chosen file is named even though its path cannot be",
+        "upload.html", upload,
+        lambda s: [
+            (len(s) == 1, f"expected one step, got {len(s)}: {[x['keyword'] for x in s]}"),
+            (s and s[0]["keyword"] == "Choose File", f"keyword was {s[0]['keyword'] if s else None}"),
+            (s and s[0].get("value") == "zelector-sample.png",
+             f"the file name came out as {s[0].get('value') if s else None}"),
         ],
     ),
     Case(

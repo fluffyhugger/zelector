@@ -1,0 +1,9 @@
+<!doctype html><meta charset="utf-8"><title>enter</title><link rel=stylesheet href=_base.css>
+<!-- Typing a query and pressing Enter is how most people search. The typing was
+     recorded; the press that acted on it was not, so the replay typed and then
+     stopped. -->
+<form id="f" onsubmit="event.preventDefault();document.getElementById('out').textContent='searched: '+q.value">
+  <input id="q" name="q" type="text" autocomplete="off">
+</form>
+<div id="out"></div>
+<script src="harness.js"></script>

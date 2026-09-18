@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><title>upload</title><link rel=stylesheet href=_base.css>
+<!-- The browser hands over a name and never a path, so a recording can say
+     which file was picked but not where to find it. -->
+<label for="avatar">Avatar</label>
+<input id="avatar" name="avatar" type="file">
+<div id="picked"></div>
+<script>
+  document.getElementById('avatar').addEventListener('change', (e) => {
+    document.getElementById('picked').textContent = e.target.files[0]?.name ?? '';
+  });
+</script>
+<script src="harness.js"></script>

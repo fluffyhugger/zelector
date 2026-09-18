@@ -179,6 +179,7 @@ export class Recorder {
       this.push({ kind: 'dialog', target: describe(document.documentElement), dialog });
     });
     window.addEventListener('pointerdown', this.onPointerDown, true);
+    window.addEventListener('keydown', this.onKeyDown, true);
     window.addEventListener('click', this.onClick, true);
     window.addEventListener('input', this.onInput, true);
     window.addEventListener('change', this.onChange, true);
@@ -196,6 +197,7 @@ export class Recorder {
     this.offDialog?.();
     this.offDialog = null;
     window.removeEventListener('pointerdown', this.onPointerDown, true);
+    window.removeEventListener('keydown', this.onKeyDown, true);
     window.removeEventListener('click', this.onClick, true);
     window.removeEventListener('input', this.onInput, true);
     window.removeEventListener('change', this.onChange, true);
@@ -293,6 +295,28 @@ export class Recorder {
     this.watch = null;
   };
 
+  /**
+   * Keys that do something rather than say something.
+   *
+   * Typing is already covered by the input event, so only the presses that act
+   * on their own are steps: Enter submitting a search, Escape closing a menu.
+   * Everything else is either a character on its way into a field or a
+   * navigation key that the recording does not need to reproduce.
+   */
+  private onKeyDown = (event: KeyboardEvent): void => {
+    if (!this.capturing || isNotPageContent(event.target)) return;
+    const key = ACTING_KEYS[event.key];
+    if (!key || event.altKey || event.ctrlKey || event.metaKey) return;
+
+    const el = event.target instanceof Element ? event.target : document.activeElement;
+    if (!el || isNotPageContent(el)) return;
+
+    // Enter in a field submits what was typed, so the typing is its own step
+    // and has to land first.
+    this.flushTyping();
+    this.push({ kind: 'key', target: describe(el), value: key });
+  };
+
   private onClick = (event: MouseEvent): void => {
     if (!this.capturing || isNotPageContent(event.target)) return;
 
@@ -342,7 +366,10 @@ export class Recorder {
     if (!this.capturing || isNotPageContent(event.target)) return;
     const el = event.target;
     if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return;
-    if (isToggle(el)) return;
+    // Only the ones you actually type into. A file input fires input events too,
+    // and its value is the browser's `C:\fakepath\name` placeholder — which is
+    // not a path, not what was typed, and not a step.
+    if (!isTextEntry(el)) return;
 
     if (this.typing && this.typing.el !== el) this.flushTyping();
     this.typing = { el, target: this.typing?.el === el ? this.typing.target : describe(el), value: el.value };
@@ -397,6 +424,27 @@ export class Recorder {
       this.push({ kind: 'check', target: describe(el), ...toggleKeyword(el) });
       return;
     }
+    // A file input's click was already recorded; what the change adds is which
+    // file was picked, which is worth writing down even though the path is not
+    // available to record.
+    if (el instanceof HTMLInputElement && el.type === 'file') {
+      const chosen = el.files?.[0]?.name;
+      if (!chosen) return;
+      const target = describe(el);
+      const last = this.steps[this.steps.length - 1];
+
+      // Opening the picker was recorded as a click, so this only adds which
+      // file came back. Dropped onto the input instead, there is no click to
+      // add it to and the choice is the whole step.
+      if (last && sameElement(last.target, target)) {
+        last.value = chosen;
+        this.emit();
+        return;
+      }
+      this.push({ kind: 'click', target, value: chosen });
+      return;
+    }
+
     if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) this.flushTyping();
   };
 
@@ -568,6 +616,12 @@ function isHitTestable(el: HTMLElement): boolean {
   const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
   return !!hit && (hit === el || el.contains(hit));
 }
+
+/** Selenium's names for the keys worth recording. */
+const ACTING_KEYS: Record<string, string> = {
+  Enter: 'RETURN',
+  Escape: 'ESCAPE',
+};
 
 /** Something you type into, rather than press. */
 function isTextEntry(el: Element): boolean {

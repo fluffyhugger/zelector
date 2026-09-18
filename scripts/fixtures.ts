@@ -144,4 +144,24 @@ const dialogFlow: Recording = {
 };
 
 writeFileSync('rf/_recorded_dialogs.robot', toRobotSuite(dialogFlow));
+
+// A search submitted with the keyboard, and a file whose path nobody knows.
+const keyFlow: Recording = {
+  active: false,
+  startedAt: Date.UTC(2026, 8, 18),
+  startUrl: 'https://example.com/search',
+  name: 'Search And Attach',
+  steps: [
+    { kind: 'input', target: el('input', { id: 'q', type: 'text' }), value: 'shoes',
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    { kind: 'key', target: el('input', { id: 'q', type: 'text' }), value: 'RETURN',
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    { kind: 'click', target: el('input', { id: 'avatar', type: 'file' }), value: 'photo (1).png',
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    { kind: 'key', target: el('div', { id: 'menu' }), value: 'ESCAPE',
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+  ].map(step),
+};
+
+writeFileSync('rf/_recorded_keys.robot', toRobotSuite(keyFlow));
 console.log('wrote rf/_recorded_flow.robot, rf/_recorded_iframe.robot');

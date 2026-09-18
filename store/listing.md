@@ -78,6 +78,8 @@ THINGS THAT USUALLY GET IN THE WAY
 - alert, confirm and prompt are recorded as Handle Alert and Input Text Into
   Alert. A dialog is browser chrome rather than DOM, so a recorder that misses
   one leaves a suite that hangs on it.
+- Enter and Escape are recorded as Press Keys, so a search submitted from the
+  keyboard replays as one.
 - Recording survives navigation, so a login or a checkout records as one flow.
 
 ALSO COPIES A SELECTOR AS
@@ -96,10 +98,12 @@ checked against the code.
 
 WHAT IT DOES NOT DO YET
 
-Drag and drop, hover-only menus, keyboard-only navigation and file uploads are
-not captured — those steps are simply missing from the recording rather than
-recorded wrongly. Cross-origin iframes give a frame selector that is a guess,
-and it is labelled as one.
+Drag and drop is not captured, and neither is opening a menu by hovering over
+it — those steps are simply missing from the recording rather than recorded
+wrongly. A file upload records which file was chosen but cannot record where it
+came from, because the browser does not tell anyone that; the path is left as a
+placeholder with the name in a comment. Cross-origin iframes give a frame
+selector that is a guess, and it is labelled as one.
 ```
 
 ---

@@ -87,7 +87,8 @@ export interface WaitSpec {
   provisional?: boolean;
 }
 
-export type StepKind = 'click' | 'input' | 'select' | 'check' | 'assert' | 'navigate' | 'dialog';
+export type StepKind =
+  | 'click' | 'input' | 'select' | 'check' | 'assert' | 'navigate' | 'dialog' | 'key';
 
 /** What a native dialog asked and how it was answered. */
 export interface DialogStep {
@@ -337,6 +338,15 @@ function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedS
   // put in front of it would be waiting on a page that cannot answer.
   if (step.kind === 'dialog') return { pre: [], call: renderDialog(step) };
 
+  // Press Keys takes the locator inline; there is no keyword worth defining for
+  // "press Enter here".
+  if (step.kind === 'key') {
+    return {
+      pre: wait ? [wait] : [],
+      call: `    Press Keys    ${v(syms.forTarget(step.target))}    ${step.value ?? 'RETURN'}`,
+    };
+  }
+
   if (step.kind === 'navigate') {
     const urlVar = syms.plain('URL', step.value ?? '', 'recorded navigation');
     return { pre: wait ? [wait] : [], call: `    Go To    ${v(urlVar)}` };
@@ -387,7 +397,24 @@ function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedS
   ];
 
   const final = kws.add(name, args, body);
-  const passed = action.argument ? `    ${safeValue(step.value ?? action.argument)}` : '';
+
+  // A recorded value is data and gets escaped; the keyword's own placeholder is
+  // Robot syntax and must not be, or ${TEXT} reaches the file as \${TEXT} and
+  // arrives at the browser as six literal characters.
+  const passed = action.argument
+    ? `    ${step.value === undefined ? action.argument : safeValue(step.value)}`
+    : '';
+
+  // A file input hands over a name and never a path — the browser will not say
+  // where the file came from. So the placeholder stays, and the name goes in a
+  // comment so whoever runs this knows what to point it at.
+  if (action.keyword === 'Choose File' && step.value) {
+    return {
+      pre: [...pre, `    # the file chosen while recording was ${safeDoc(step.value)}`],
+      call: `    ${final}    ${action.argument ?? '${FILE_PATH}'}`,
+    };
+  }
+
   return { pre, call: `    ${final}${passed}` };
 }
 

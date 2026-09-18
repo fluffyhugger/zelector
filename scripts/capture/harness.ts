@@ -30,6 +30,7 @@ interface Summary {
 /** Mirrors what the generator does, so a test asserts on what would be written. */
 const keywordOf = (step: RecordedStep): string => {
   if (step.kind === 'navigate') return 'Go To';
+  if (step.kind === 'key') return 'Press Keys';
   if (step.dialog) {
     return step.dialog.kind === 'prompt' && step.dialog.accepted
       ? 'Input Text Into Alert'
