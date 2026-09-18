@@ -93,6 +93,32 @@ def date_field(driver):
     time.sleep(1.0)
 
 
+def date_after_typing(driver):
+    phone = driver.find_element(By.ID, "phone")
+    phone.click()
+    phone.send_keys("0812345678")
+    # No pause: the typing is still buffered when the next press arrives, which
+    # is the ordering the real recording had.
+    driver.find_element(By.ID, "dob").click()
+    time.sleep(1.2)
+    driver.find_element(By.ID, "day-9").click()
+    time.sleep(1.0)
+
+
+def dialogs(driver):
+    driver.find_element(By.ID, "warn").click()
+    driver.switch_to.alert.accept()
+    time.sleep(0.8)
+    driver.find_element(By.ID, "ask").click()
+    driver.switch_to.alert.dismiss()
+    time.sleep(0.8)
+    driver.find_element(By.ID, "name").click()
+    alert = driver.switch_to.alert
+    alert.send_keys("Somebody")
+    alert.accept()
+    time.sleep(0.8)
+
+
 def checkbox(driver):
     label = driver.find_element(By.CSS_SELECTOR, "label[for=agree]")
     label.click()
@@ -150,6 +176,29 @@ CASES = [
             # The calendar belongs to the step after the one that opened it.
             (len(s) > 1 and "tri" not in (s[0].get("waitTarget") or ""),
              f"the calendar was credited to the click that opened it: {s[0].get('waitTarget')}"),
+        ],
+    ),
+    Case(
+        "a calendar opened by a press belongs to the step after it",
+        "datefield-after-typing.html", date_after_typing,
+        lambda s: [
+            (len(s) == 3, f"expected three steps, got {len(s)}: {[x['keyword'] for x in s]}"),
+            (len(s) > 1 and s[1]["locator"] == "id:dob",
+             f"the date field step targeted {s[1]['locator'] if len(s) > 1 else None}"),
+            # The step that opens the calendar cannot be waiting for it.
+            (len(s) > 1 and "tri" not in (s[1].get("waitTarget") or "")
+             and "cal" not in (s[1].get("waitTarget") or ""),
+             f"the calendar was credited to the click that opened it: "
+             f"{s[1].get('waitTarget') if len(s) > 1 else None}"),
+        ],
+    ),
+    Case(
+        "native dialogs become steps of their own",
+        "dialogs.html", dialogs,
+        lambda s: [
+            (len(s) == 6, f"expected six steps, got {len(s)}: {[x['keyword'] for x in s]}"),
+            ([x["keyword"] for x in s][1::2] == ["Handle Alert", "Handle Alert", "Input Text Into Alert"],
+             f"dialog steps came out as {[x['keyword'] for x in s][1::2]}"),
         ],
     ),
     Case(

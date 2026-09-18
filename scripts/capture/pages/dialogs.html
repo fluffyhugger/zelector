@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><title>dialogs</title><link rel=stylesheet href=_base.css>
+<!-- A dialog is browser chrome: no element, no event, nothing to pick. Walk
+     past one and the generated suite hangs on a dialog it never mentions. -->
+<button id="warn" type="button">Warn</button>
+<button id="ask" type="button">Ask</button>
+<button id="name" type="button">Name</button>
+<div id="said"></div>
+<script>
+  document.getElementById('warn').addEventListener('click', () => alert('Saved.'));
+  document.getElementById('ask').addEventListener('click', () => {
+    document.getElementById('said').textContent = confirm('Delete everything?') ? 'yes' : 'no';
+  });
+  document.getElementById('name').addEventListener('click', () => {
+    document.getElementById('said').textContent = prompt('Your name?') ?? '(cancelled)';
+  });
+</script>
+<script src="harness.js"></script>

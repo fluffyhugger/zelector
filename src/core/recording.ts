@@ -87,7 +87,15 @@ export interface WaitSpec {
   provisional?: boolean;
 }
 
-export type StepKind = 'click' | 'input' | 'select' | 'check' | 'assert' | 'navigate';
+export type StepKind = 'click' | 'input' | 'select' | 'check' | 'assert' | 'navigate' | 'dialog';
+
+/** What a native dialog asked and how it was answered. */
+export interface DialogStep {
+  kind: 'alert' | 'confirm' | 'prompt';
+  message: string;
+  accepted: boolean;
+  text?: string;
+}
 
 export interface RecordedStep {
   id: string;
@@ -97,6 +105,8 @@ export interface RecordedStep {
   value?: string;
   /** SeleniumLibrary keyword. Defaults to the primary from robotActionsFor(). */
   keyword?: string;
+  /** `dialog` steps only. */
+  dialog?: DialogStep;
   wait: WaitSpec;
   at: number;
 }
@@ -320,6 +330,13 @@ interface RenderedStep {
 function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedStep {
   const wait = renderWait(step.wait, syms);
 
+  // A dialog is not an element, so it has no locator, no keyword definition and
+  // nothing to wait for — it is already on screen and blocking when the step
+  // after it runs. It goes straight into the test case.
+  // No wait of any kind: the dialog is already up and blocking, and anything
+  // put in front of it would be waiting on a page that cannot answer.
+  if (step.kind === 'dialog') return { pre: [], call: renderDialog(step) };
+
   if (step.kind === 'navigate') {
     const urlVar = syms.plain('URL', step.value ?? '', 'recorded navigation');
     return { pre: wait ? [wait] : [], call: `    Go To    ${v(urlVar)}` };
@@ -372,6 +389,22 @@ function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedS
   const final = kws.add(name, args, body);
   const passed = action.argument ? `    ${safeValue(step.value ?? action.argument)}` : '';
   return { pre, call: `    ${final}${passed}` };
+}
+
+/**
+ * `Handle Alert` covers alert and confirm; a prompt that was typed into needs
+ * `Input Text Into Alert`, which accepts in the same breath. A cancelled prompt
+ * is a dismissal like any other.
+ */
+function renderDialog(step: RecordedStep): string {
+  const dialog = step.dialog;
+  if (!dialog) return '    Handle Alert    action=ACCEPT';
+
+  const action = dialog.accepted ? 'ACCEPT' : 'DISMISS';
+  if (dialog.kind === 'prompt' && dialog.accepted) {
+    return `    Input Text Into Alert    ${safeValue(dialog.text ?? '')}    action=ACCEPT`;
+  }
+  return `    Handle Alert    action=${action}`;
 }
 
 /**

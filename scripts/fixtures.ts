@@ -117,4 +117,31 @@ const iframeFlow: Recording = {
 };
 
 writeFileSync('rf/_recorded_iframe.robot', toRobotSuite(iframeFlow));
+
+// Dialogs: accepted, dismissed, and typed into.
+const dialogFlow: Recording = {
+  active: false,
+  startedAt: Date.UTC(2026, 8, 18),
+  startUrl: 'https://example.com/admin',
+  name: 'Confirmations',
+  steps: [
+    { kind: 'click', target: el('button', { id: 'save' }, 'Save', '#save'),
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    { kind: 'dialog', target: el('html', {}), dialog: { kind: 'alert', message: 'Saved.', accepted: true },
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    { kind: 'click', target: el('button', { id: 'delete' }, 'Delete', '#delete'),
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    { kind: 'dialog', target: el('html', {}),
+      dialog: { kind: 'confirm', message: 'Delete everything?', accepted: false },
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    { kind: 'click', target: el('button', { id: 'rename' }, 'Rename', '#rename'),
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    { kind: 'dialog', target: el('html', {}),
+      // A value with the separator in it, because a prompt takes free text.
+      dialog: { kind: 'prompt', message: 'New name?', accepted: true, text: 'a  b ${X}' },
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+  ].map(step),
+};
+
+writeFileSync('rf/_recorded_dialogs.robot', toRobotSuite(dialogFlow));
 console.log('wrote rf/_recorded_flow.robot, rf/_recorded_iframe.robot');

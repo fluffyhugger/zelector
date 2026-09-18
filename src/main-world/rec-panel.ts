@@ -246,8 +246,9 @@ export class RecPanel {
     const action = actionForStep(step);
     const alternatives = robotActionsFor(step.target);
 
-    const keywordPicker = step.kind === 'navigate'
-      ? h('span', { class: 'kw', text: 'Go To' })
+    const fixed = step.kind === 'navigate' ? 'Go To' : step.kind === 'dialog' ? dialogKeyword(step) : null;
+    const keywordPicker = fixed
+      ? h('span', { class: 'kw', text: fixed })
       : h(
           'select',
           {
@@ -278,7 +279,7 @@ export class RecPanel {
           on: { click: () => this.callbacks.onRemove(step.id) },
         }),
       ),
-      this.renderWait(step),
+      step.kind === 'dialog' ? null : this.renderWait(step),
       step.wait.reason
         ? h('div', { class: step.wait.provisional ? 'why guess' : 'why' }, `ⓘ ${step.wait.reason}`)
         : null,
@@ -440,8 +441,19 @@ function timeoutInput(step: RecordedStep, callbacks: RecPanelCallbacks): HTMLEle
   );
 }
 
+/** Handle Alert covers alert and confirm; a typed-into prompt needs the other. */
+function dialogKeyword(step: RecordedStep): string {
+  return step.dialog?.kind === 'prompt' && step.dialog.accepted
+    ? 'Input Text Into Alert'
+    : 'Handle Alert';
+}
+
 function targetLabel(step: RecordedStep): string {
   if (step.kind === 'navigate') return step.value ?? '';
+  if (step.dialog) {
+    const answer = step.dialog.accepted ? (step.dialog.text ?? 'accepted') : 'dismissed';
+    return `${step.dialog.kind}: ${step.dialog.message.slice(0, 30)} → ${answer}`;
+  }
   const { attributes, tagName } = step.target;
   const ident =
     attributes['data-testid'] ?? attributes['data-cy'] ?? attributes['id'] ?? attributes['name'];

@@ -27,8 +27,19 @@ interface Summary {
   reason: string;
 }
 
+/** Mirrors what the generator does, so a test asserts on what would be written. */
+const keywordOf = (step: RecordedStep): string => {
+  if (step.kind === 'navigate') return 'Go To';
+  if (step.dialog) {
+    return step.dialog.kind === 'prompt' && step.dialog.accepted
+      ? 'Input Text Into Alert'
+      : 'Handle Alert';
+  }
+  return actionForStep(step).keyword;
+};
+
 const summarise = (step: RecordedStep): Summary => ({
-  keyword: actionForStep(step).keyword,
+  keyword: keywordOf(step),
   locator: toRobotLocator(step.target).value,
   ...(step.value === undefined ? {} : { value: step.value }),
   wait: step.wait.kind,

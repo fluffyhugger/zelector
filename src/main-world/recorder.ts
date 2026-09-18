@@ -13,8 +13,16 @@
  */
 import type { PickResult } from '@/core/types';
 import { toRobotLocator } from '@/core/robot';
-import type { PanelPlacement, RecordedStep, Recording, StepKind, WaitSpec } from '@/core/recording';
+import type {
+  DialogStep,
+  PanelPlacement,
+  RecordedStep,
+  Recording,
+  StepKind,
+  WaitSpec,
+} from '@/core/recording';
 import { deepElementFromPoint, describe } from './picker';
+import { onDialog } from './hooks';
 import { isNotPageContent } from './ignore';
 import { emptyChange, timeoutFor, watchPageChange, type PageChange, type Watch } from './observer';
 
@@ -65,6 +73,8 @@ export class Recorder {
   private typingTimer = 0;
   /** A settled page change waiting for the step it should inform. */
   private pending: { forIndex: number; change: PageChange } | null = null;
+  /** Unsubscribes the dialog listener when recording stops. */
+  private offDialog: (() => void) | null = null;
   /** The window still open on the last action's aftermath. */
   private watch: Watch | null = null;
   /**
@@ -155,6 +165,19 @@ export class Recorder {
       // tested, and beats making everyone rename "Recorded Flow" by hand.
       this.name = this.name || titleCase(document.title);
     }
+    // A dialog blocks the page, so this fires after it has been answered and
+    // before the page acts on the answer — which lands the step immediately
+    // after the click that raised it, with no ordering work needed.
+    this.offDialog = onDialog((event) => {
+      if (!this.capturing) return;
+      const dialog: DialogStep = {
+        kind: event.kind,
+        message: event.message,
+        accepted: event.accepted,
+        ...(event.text === undefined ? {} : { text: event.text }),
+      };
+      this.push({ kind: 'dialog', target: describe(document.documentElement), dialog });
+    });
     window.addEventListener('pointerdown', this.onPointerDown, true);
     window.addEventListener('click', this.onClick, true);
     window.addEventListener('input', this.onInput, true);
@@ -170,6 +193,8 @@ export class Recorder {
     this.watch?.settle();
     this.watch = null;
     this.active = false;
+    this.offDialog?.();
+    this.offDialog = null;
     window.removeEventListener('pointerdown', this.onPointerDown, true);
     window.removeEventListener('click', this.onClick, true);
     window.removeEventListener('input', this.onInput, true);
@@ -420,7 +445,13 @@ export class Recorder {
 
   // ── Step construction ──────────────────────────────────────────────────────
 
-  private push(partial: { kind: StepKind; target: PickResult; value?: string; keyword?: string }): void {
+  private push(partial: {
+    kind: StepKind;
+    target: PickResult;
+    value?: string;
+    keyword?: string;
+    dialog?: DialogStep;
+  }): void {
     // A click on a <label> is delivered again, forwarded to the control, and a
     // toggle reached that way reports the state on the way in before it reports
     // the state it settled on. Either way it is one action, so the second
@@ -456,6 +487,7 @@ export class Recorder {
       target: partial.target,
       ...(partial.value !== undefined ? { value: partial.value } : {}),
       ...(partial.keyword !== undefined ? { keyword: partial.keyword } : {}),
+      ...(partial.dialog !== undefined ? { dialog: partial.dialog } : {}),
       wait: change ? inferWait(change, partial.target) : provisionalWait(partial.target),
       at: Date.now(),
     };

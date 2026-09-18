@@ -75,6 +75,9 @@ THINGS THAT USUALLY GET IN THE WAY
 - Elements inside iframes get Select Frame and Unselect Frame around them,
   because Selenium has a current frame and a locator only ever addresses that.
 - Freeze the DOM to keep a hover menu or a popover open while you inspect it.
+- alert, confirm and prompt are recorded as Handle Alert and Input Text Into
+  Alert. A dialog is browser chrome rather than DOM, so a recorder that misses
+  one leaves a suite that hangs on it.
 - Recording survives navigation, so a login or a checkout records as one flow.
 
 ALSO COPIES A SELECTOR AS
@@ -95,8 +98,8 @@ WHAT IT DOES NOT DO YET
 
 Drag and drop, hover-only menus, keyboard-only navigation and file uploads are
 not captured — those steps are simply missing from the recording rather than
-recorded wrongly. JavaScript alerts are not detected. Cross-origin iframes give
-a frame selector that is a guess, and it is labelled as one.
+recorded wrongly. Cross-origin iframes give a frame selector that is a guess,
+and it is labelled as one.
 ```
 
 ---

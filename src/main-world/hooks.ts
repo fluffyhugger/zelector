@@ -6,6 +6,10 @@
  *      DevTools shows those as an opaque `#shadow-root (closed)`; we can walk in.
  *   2. fetch / XMLHttpRequest, so every response body is available later when we
  *      map a DOM node back to the JSON field that produced it.
+ *   3. alert / confirm / prompt, because a dialog is the one thing a recorder
+ *      cannot see any other way. It is browser chrome, not DOM: no element to
+ *      pick, no event to listen for. A recording that walks past one produces a
+ *      suite that hangs on the dialog it never mentions.
  */
 
 /** Closed roots, keyed by host. WeakMap so we never keep detached trees alive. */
@@ -30,6 +34,79 @@ export function installHooks(): void {
   installShadowHook();
   installFetchHook();
   installXhrHook();
+  installDialogHook();
+}
+
+/** What a dialog asked, and what the person answered. */
+export interface DialogEvent {
+  kind: 'alert' | 'confirm' | 'prompt';
+  message: string;
+  /** confirm: dismissed. prompt: cancelled. */
+  accepted: boolean;
+  /** prompt only — what was typed in. */
+  text?: string;
+}
+
+type DialogListener = (event: DialogEvent) => void;
+const dialogListeners = new Set<DialogListener>();
+
+export function onDialog(listener: DialogListener): () => void {
+  dialogListeners.add(listener);
+  return () => dialogListeners.delete(listener);
+}
+
+/**
+ * These block the page, so the listeners run after the person has answered and
+ * before the page sees the answer — which puts the step in the right place
+ * without any ordering work at the other end.
+ */
+function installDialogHook(): void {
+  const announce = (event: DialogEvent): void => {
+    for (const listener of dialogListeners) {
+      try {
+        listener(event);
+      } catch {
+        // A listener that throws must not break the page's own dialog.
+      }
+    }
+  };
+
+  const alertOriginal = window.alert;
+  if (alertOriginal && !(alertOriginal as { __zelector?: boolean }).__zelector) {
+    const patched = function (this: unknown, message?: unknown): void {
+      alertOriginal.call(window, message as string);
+      announce({ kind: 'alert', message: String(message ?? ''), accepted: true });
+    } as typeof window.alert;
+    (patched as { __zelector?: boolean }).__zelector = true;
+    window.alert = patched;
+  }
+
+  const confirmOriginal = window.confirm;
+  if (confirmOriginal && !(confirmOriginal as { __zelector?: boolean }).__zelector) {
+    const patched = function (this: unknown, message?: unknown): boolean {
+      const accepted = confirmOriginal.call(window, message as string);
+      announce({ kind: 'confirm', message: String(message ?? ''), accepted });
+      return accepted;
+    } as typeof window.confirm;
+    (patched as { __zelector?: boolean }).__zelector = true;
+    window.confirm = patched;
+  }
+
+  const promptOriginal = window.prompt;
+  if (promptOriginal && !(promptOriginal as { __zelector?: boolean }).__zelector) {
+    const patched = function (this: unknown, message?: unknown, fallback?: unknown): string | null {
+      const answer = promptOriginal.call(window, message as string, fallback as string);
+      announce({
+        kind: 'prompt',
+        message: String(message ?? ''),
+        accepted: answer !== null,
+        ...(answer === null ? {} : { text: answer }),
+      });
+      return answer;
+    } as typeof window.prompt;
+    (patched as { __zelector?: boolean }).__zelector = true;
+    window.prompt = patched;
+  }
 }
 
 function installShadowHook(): void {
