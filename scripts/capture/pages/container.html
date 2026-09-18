@@ -1,0 +1,11 @@
+<!doctype html><meta charset="utf-8"><title>container</title><link rel=stylesheet href=_base.css>
+<!-- Clicking the whitespace of a form is not a step, and replays as a click on
+     the form's centre, which is somewhere else entirely. -->
+<form id="userForm" class="pad" style="height:320px;position:relative">
+  <!-- The button is at the bottom so a click near the middle of the form lands
+       on nothing, which is the case being tested. -->
+  <button id="real" type="button" style="position:absolute;bottom:16px;left:16px">
+    A real button
+  </button>
+</form>
+<script src="harness.js"></script>

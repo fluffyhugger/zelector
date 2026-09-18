@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><title>date field</title><link rel=stylesheet href=_base.css>
+<!-- A read-only field that opens a panel on focus: the click is the action, and
+     the panel belongs to what happens next, not to what came before. -->
+<input id="dob" type="text" readonly placeholder="Pick a date">
+<div id="cal" hidden style="margin-top:8px;padding:12px;background:#eee">
+  <svg id="tri" width="12" height="12"><polygon points="0,12 6,0 12,12"/></svg>
+  <button id="day-9">9</button>
+</div>
+<script>
+  const cal = document.getElementById('cal');
+  document.getElementById('dob').addEventListener('focus', () => { cal.hidden = false; });
+</script>
+<script src="harness.js"></script>

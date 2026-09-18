@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>dropdown</title><link rel=stylesheet href=_base.css>
+<!-- Opens on mousedown, so by the time the click is delivered an option is
+     already under the cursor. Aim has to be taken when the pointer goes down. -->
+<div id="control" role="combobox" tabindex="0" style="width:220px;padding:10px;border:1px solid #999">
+  Choose…
+</div>
+<div id="menu" hidden style="width:220px;border:1px solid #999;border-top:0">
+  <div id="opt-a" role="option" style="padding:10px">Alpha</div>
+  <div id="opt-b" role="option" style="padding:10px">Beta</div>
+</div>
+<script>
+  const menu = document.getElementById('menu');
+  document.getElementById('control').addEventListener('mousedown', () => { menu.hidden = false; });
+</script>
+<script src="harness.js"></script>

@@ -18,7 +18,7 @@
  */
 import type { PickResult } from '@/core/types';
 import { capturedResponses, type CapturedResponse } from './hooks';
-import { isNotPageContent, isOwnNode } from './ignore';
+import { isNotPageContent } from './ignore';
 import { describe } from './picker';
 
 /** Stop waiting once the DOM has been still for this long. */
@@ -127,7 +127,7 @@ export function watchPageChange(onQuiet: (change: PageChange) => void): Watch {
   let quietTimer = 0;
 
   const consider = (node: Node): void => {
-    if (!(node instanceof Element) || isOwnNode(node)) return;
+    if (!(node instanceof Element) || isNotPageContent(node)) return;
     if (pending.size >= MAX_TRACKED) return;
     if (!isVisible(node)) return;
     pending.add(node);
@@ -135,7 +135,7 @@ export function watchPageChange(onQuiet: (change: PageChange) => void): Watch {
 
   const retire = (node: Node): void => {
     if (!(node instanceof Element)) return;
-    if (!isOwnNode(node)) removed.add(identity(node));
+    if (!isNotPageContent(node)) removed.add(identity(node));
     // Only elements we saw appear — a page tearing down its old view on
     // navigation would otherwise flood this with everything it removed.
     if (!pending.has(node)) return;

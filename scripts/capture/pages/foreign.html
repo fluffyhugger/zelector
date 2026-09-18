@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>foreign</title><link rel=stylesheet href=_base.css>
+<!-- Another extension's furniture must not become something a test waits for. -->
+<button id="go">Go</button>
+<div id="target" hidden style="margin-top:10px">Done</div>
+<script>
+  document.getElementById('go').addEventListener('click', () => {
+    const injected = document.createElement('div');
+    injected.id = 'gtx-trans';
+    injected.textContent = 'translate widget';
+    injected.style.cssText = 'width:300px;height:80px;background:#fee';
+    document.body.appendChild(injected);
+    document.getElementById('target').hidden = false;
+  });
+</script>
+<script src="harness.js"></script>

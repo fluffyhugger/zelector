@@ -73,6 +73,14 @@ export class Recorder {
    * something else under the cursor.
    */
   private pressed: { el: Element; x: number; y: number; at: number } | null = null;
+  /**
+   * The element the last click resolved to. Kept because a <label> forwards its
+   * click to its control, and the forwarded event carries no coordinates — so
+   * the second arrival resolves to the control while the first resolved to the
+   * label, and the dedup in push(), which compares targets, sees two different
+   * elements and keeps both.
+   */
+  private lastClicked: { el: Element; at: number } | null = null;
 
   constructor(private readonly callbacks: RecorderCallbacks) {}
 
@@ -274,6 +282,11 @@ export class Recorder {
     if (!raw || isNotPageContent(raw)) return;
 
     const el = resolveTarget(raw);
+
+    // The same click, arriving a second time on the other side of a <label>.
+    if (this.reachedThroughLabel(el)) return;
+    this.lastClicked = { el, at: Date.now() };
+
     this.flushTyping(el);
 
     if (el instanceof HTMLSelectElement) return; // the change event is the step
@@ -313,6 +326,25 @@ export class Recorder {
     this.typingTimer = window.setTimeout(() => this.flushTyping(), TYPING_IDLE_MS);
   };
 
+  /**
+   * Was this control just recorded by way of its <label>?
+   *
+   * Clicking a label reaches the control twice over: the click is forwarded to
+   * it, and a change event follows. The label is already the step — it was kept
+   * because the control beneath it cannot be clicked — so both of those are the
+   * same action arriving again, and neither is a step of its own. Merging them
+   * would be wrong too: Select Checkbox aimed at a <label> does not run.
+   */
+  private reachedThroughLabel(el: Element): boolean {
+    const clicked = this.lastClicked;
+    return (
+      !!clicked &&
+      Date.now() - clicked.at < 400 &&
+      clicked.el instanceof HTMLLabelElement &&
+      clicked.el.control === el
+    );
+  }
+
   private onChange = (event: Event): void => {
     if (!this.capturing || isNotPageContent(event.target)) return;
     const el = event.target;
@@ -323,6 +355,7 @@ export class Recorder {
       return;
     }
     if (el instanceof HTMLInputElement && isToggle(el)) {
+      if (this.reachedThroughLabel(el)) return;
       const last = this.steps[this.steps.length - 1];
       if (last?.kind === 'check' && Date.now() - last.at < 400) {
         // The click handler already recorded this one — but a click routed
@@ -530,6 +563,11 @@ function resolveTarget(el: Element): Element {
     }
     return interactive;
   }
+
+  // A form or a section is not a wrapper worth looking inside. Descending from
+  // one finds whichever single control it happens to contain, so clicking the
+  // whitespace of a form with one button in it records a click on that button.
+  if (STRUCTURAL.has(el.tagName)) return el;
 
   // Nothing interactive above. A wrapper holding exactly one control is that
   // control — Angular Material's form field is a stack of presentational divs

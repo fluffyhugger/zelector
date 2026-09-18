@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><title>checkbox</title><link rel=stylesheet href=_base.css>
+<!-- The input is underneath its label, the way every custom checkbox does it.
+     Clicking the label reaches us twice and reports the state on the way in. -->
+<style>
+  /* The input keeps a box so it is still hit-tested, and the label paints over
+     it — which is what Bootstrap, Tailwind and Material all end up doing. */
+  .wrap { position: relative; display: inline-block; }
+  .wrap input { position: absolute; left: 12px; top: 13px; width: 16px; height: 16px;
+                margin: 0; opacity: 0; }
+  .wrap label { position: relative; z-index: 1; display: inline-block;
+                padding: 10px 16px 10px 36px; background: #eef; cursor: pointer; }
+</style>
+<span class="wrap">
+  <input type="checkbox" id="agree">
+  <label for="agree">I agree</label>
+</span>
+<script src="harness.js"></script>

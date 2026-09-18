@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>rerender</title><link rel=stylesheet href=_base.css>
+<!-- Sorting rebuilds every row. Nothing arrives and nothing leaves, so there is
+     nothing to wait for, and saying otherwise produces a wait that passes
+     instantly while the next click races the redraw. -->
+<button id="sort">Sort</button>
+<ul id="rows"></ul>
+<button id="after">After</button>
+<script>
+  const rows = document.getElementById('rows');
+  const draw = (names) => {
+    rows.replaceChildren();
+    for (const n of names) {
+      const li = document.createElement('li');
+      li.className = 'row';
+      li.textContent = n;
+      rows.append(li);
+    }
+  };
+  draw(['b', 'c', 'a']);
+  document.getElementById('sort').addEventListener('click', () => draw(['a', 'b', 'c']));
+</script>
+<script src="harness.js"></script>
