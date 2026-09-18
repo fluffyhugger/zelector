@@ -1,0 +1,30 @@
+<!doctype html><meta charset="utf-8"><title>drag</title><link rel=stylesheet href=_base.css>
+<!-- A pointer that goes down on one thing and comes up on another. Recorded as
+     a click it lands on whichever end the browser fires the click over; not
+     recorded at all, which is what happened before, the step just vanishes. -->
+<style>
+  .col { display: inline-block; vertical-align: top; width: 180px; min-height: 120px;
+         border: 2px dashed #aaa; padding: 10px; margin-right: 20px; }
+  .card { padding: 10px; background: #dde; margin-bottom: 6px; cursor: grab; }
+</style>
+<div class="col" id="todo"><div class="card" id="card-1">Write tests</div></div>
+<div class="col" id="done"></div>
+<script>
+  // Pointer-driven, the way sortable libraries do it — no HTML5 drag events.
+  const card = document.getElementById('card-1');
+  card.addEventListener('pointerdown', (e) => {
+    card.setPointerCapture(e.pointerId);
+    const move = () => {};
+    const up = (ue) => {
+      card.releasePointerCapture(e.pointerId);
+      card.removeEventListener('pointermove', move);
+      card.removeEventListener('pointerup', up);
+      const under = document.elementFromPoint(ue.clientX, ue.clientY);
+      const col = under && under.closest('.col');
+      if (col) col.appendChild(card);
+    };
+    card.addEventListener('pointermove', move);
+    card.addEventListener('pointerup', up);
+  });
+</script>
+<script src="harness.js"></script>

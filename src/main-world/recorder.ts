@@ -91,6 +91,26 @@ export class Recorder {
    * elements and keeps both.
    */
   private lastClicked: { el: Element; at: number } | null = null;
+  /** When a drag finished, so the click it drags behind it can be ignored. */
+  private dragged = 0;
+  /** Where the pointer is now, and since when. */
+  private hovering: { el: Element; since: number } | null = null;
+  /**
+   * The last thing the pointer actually rested on before moving off it.
+   *
+   * Not the same as `hovering`: to click a menu item the pointer has to cross
+   * it first, so by the time the click arrives the current hover is the target
+   * itself. What opened the menu is the one before that.
+   */
+  private lastRested: Element | null = null;
+  /**
+   * What the previous click acted on.
+   *
+   * The pointer necessarily rests on a thing it just clicked, so without this
+   * every panel opened by a click looks like a panel opened by a hover, and
+   * every step after one gains a Mouse Over that does nothing.
+   */
+  private previousClick: Element | null = null;
 
   constructor(private readonly callbacks: RecorderCallbacks) {}
 
@@ -165,6 +185,14 @@ export class Recorder {
       // tested, and beats making everyone rename "Recorded Flow" by hand.
       this.name = this.name || titleCase(document.title);
     }
+
+    // Watch from the moment recording starts, not from the first step. Without
+    // this the opening action has nothing to go on and always came out as
+    // "the page was still settling" — and a hover that opens a menu could never
+    // be the first thing recorded, because the evidence for it had not started
+    // being collected. Skipped when a navigation has already left an answer
+    // waiting.
+    if (!this.pending) this.watchFor(this.steps.length);
     // A dialog blocks the page, so this fires after it has been answered and
     // before the page acts on the answer — which lands the step immediately
     // after the click that raised it, with no ordering work needed.
@@ -179,6 +207,8 @@ export class Recorder {
       this.push({ kind: 'dialog', target: describe(document.documentElement), dialog });
     });
     window.addEventListener('pointerdown', this.onPointerDown, true);
+    window.addEventListener('pointerup', this.onPointerUp, true);
+    window.addEventListener('pointerover', this.onPointerOver, true);
     window.addEventListener('keydown', this.onKeyDown, true);
     window.addEventListener('click', this.onClick, true);
     window.addEventListener('input', this.onInput, true);
@@ -197,6 +227,8 @@ export class Recorder {
     this.offDialog?.();
     this.offDialog = null;
     window.removeEventListener('pointerdown', this.onPointerDown, true);
+    window.removeEventListener('pointerup', this.onPointerUp, true);
+    window.removeEventListener('pointerover', this.onPointerOver, true);
     window.removeEventListener('keydown', this.onKeyDown, true);
     window.removeEventListener('click', this.onClick, true);
     window.removeEventListener('input', this.onInput, true);
@@ -303,6 +335,63 @@ export class Recorder {
    * Everything else is either a character on its way into a field or a
    * navigation key that the recording does not need to reproduce.
    */
+  /**
+   * A press that travels before it is let go is a drag, not a click.
+   *
+   * Native drag-and-drop and every JavaScript implementation of it agree on
+   * this much: the pointer goes down on one thing and comes up on another.
+   * Recording it as a click on whichever of the two the browser decides to fire
+   * a click event over is worse than recording nothing, which is what happened
+   * before.
+   */
+  private onPointerUp = (event: PointerEvent): void => {
+    const pressed = this.pressed;
+    if (!this.capturing || !pressed || isNotPageContent(event.target)) return;
+
+    const travelled = Math.abs(pressed.x - event.clientX) + Math.abs(pressed.y - event.clientY);
+    if (travelled < DRAG_THRESHOLD) return;
+
+    const landed = deepElementFromPoint(event.clientX, event.clientY);
+    if (!landed || isNotPageContent(landed) || landed === pressed.el) return;
+
+    this.pressed = null;   // the click that follows belongs to this gesture
+    this.dragged = Date.now();
+    this.push({
+      kind: 'drag',
+      target: describe(resolveTarget(pressed.el)),
+      dropTarget: describe(resolveTarget(landed)),
+    });
+  };
+
+  private onPointerOver = (event: PointerEvent): void => {
+    if (!this.capturing || isNotPageContent(event.target)) return;
+    const el = event.target instanceof Element ? resolveTarget(event.target) : null;
+    if (!el || el === this.hovering?.el) return;
+
+    const leaving = this.hovering;
+    if (leaving && Date.now() - leaving.since >= HOVER_DWELL) this.lastRested = leaving.el;
+    this.hovering = { el, since: Date.now() };
+  };
+
+  /**
+   * Did the pointer resting somewhere put this within reach?
+   *
+   * Hovering is impossible to record on its own: the pointer crosses a hundred
+   * things on the way anywhere and almost none of them matter. What makes a
+   * hover a step is the consequence — a menu opened, and the next click landed
+   * inside it. So the test is exactly that, and nothing is recorded for a
+   * pointer that merely passed over something on its way to a button that was
+   * already there.
+   */
+  private hoverThatRevealed(el: Element, change: PageChange | null): Element | null {
+    const rested = this.lastRested;
+    if (!rested || !change || rested === el || rested.contains(el)) return null;
+    // It opened when it was clicked, not when it was hovered.
+    if (rested === this.previousClick) return null;
+    const revealed = change.appearedEls.some((appeared) => appeared.contains(el));
+    return revealed ? rested : null;
+  }
+
   private onKeyDown = (event: KeyboardEvent): void => {
     if (!this.capturing || isNotPageContent(event.target)) return;
     const key = ACTING_KEYS[event.key];
@@ -320,6 +409,10 @@ export class Recorder {
   private onClick = (event: MouseEvent): void => {
     if (!this.capturing || isNotPageContent(event.target)) return;
 
+    // A drag ends with a click event over one end or the other. It is not a
+    // click, and the drag has already been recorded.
+    if (Date.now() - this.dragged < 400) return;
+
     const fromEvent = event.target instanceof Element ? event.target : null;
     // A click from the keyboard reports 0,0, and whatever sits in the corner of
     // the viewport is not what was activated. Only trust the point when there
@@ -334,6 +427,7 @@ export class Recorder {
 
     // The same click, arriving a second time on the other side of a <label>.
     if (this.reachedThroughLabel(el)) return;
+    this.previousClick = this.lastClicked?.el ?? null;
     this.lastClicked = { el, at: Date.now() };
 
     this.flushTyping(el);
@@ -356,6 +450,8 @@ export class Recorder {
     // entirely, and on the page this was found on, landed in a date field and
     // left a calendar open over everything the rest of the flow needed.
     if (STRUCTURAL.has(el.tagName)) return;
+
+    this.recordHoverBefore(el);
 
     const kind: StepKind = isToggle(el) ? 'check' : 'click';
     // A click on a checkbox also fires change; the change handler defers to this.
@@ -493,12 +589,32 @@ export class Recorder {
 
   // ── Step construction ──────────────────────────────────────────────────────
 
+  /**
+   * The step that made the next one reachable, inserted in front of it.
+   *
+   * Asked before the click is pushed, because the window it consults is the one
+   * push() is about to close — after that it is gone.
+   */
+  private recordHoverBefore(el: Element): void {
+    const settled = this.watch ? this.watch.settle() : this.pending?.change ?? null;
+    if (this.watch) {
+      // Settling it here rather than in push() so both see the same answer.
+      this.pending = { forIndex: this.steps.length, change: settled! };
+      this.watch = null;
+    }
+    const opener = this.hoverThatRevealed(el, settled);
+    if (!opener) return;
+    this.lastRested = null;
+    this.push({ kind: 'hover', target: describe(opener) });
+  }
+
   private push(partial: {
     kind: StepKind;
     target: PickResult;
     value?: string;
     keyword?: string;
     dialog?: DialogStep;
+    dropTarget?: PickResult;
   }): void {
     // A click on a <label> is delivered again, forwarded to the control, and a
     // toggle reached that way reports the state on the way in before it reports
@@ -536,6 +652,7 @@ export class Recorder {
       ...(partial.value !== undefined ? { value: partial.value } : {}),
       ...(partial.keyword !== undefined ? { keyword: partial.keyword } : {}),
       ...(partial.dialog !== undefined ? { dialog: partial.dialog } : {}),
+      ...(partial.dropTarget !== undefined ? { dropTarget: partial.dropTarget } : {}),
       wait: change ? inferWait(change, partial.target) : provisionalWait(partial.target),
       at: Date.now(),
     };
@@ -616,6 +733,12 @@ function isHitTestable(el: HTMLElement): boolean {
   const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
   return !!hit && (hit === el || el.contains(hit));
 }
+
+/** Far enough that nobody meant it as a click. */
+const DRAG_THRESHOLD = 12;
+
+/** Long enough to be resting rather than passing through. */
+const HOVER_DWELL = 150;
 
 /** Selenium's names for the keys worth recording. */
 const ACTING_KEYS: Record<string, string> = {

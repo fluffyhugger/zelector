@@ -88,7 +88,8 @@ export interface WaitSpec {
 }
 
 export type StepKind =
-  | 'click' | 'input' | 'select' | 'check' | 'assert' | 'navigate' | 'dialog' | 'key';
+  | 'click' | 'input' | 'select' | 'check' | 'assert'
+  | 'navigate' | 'dialog' | 'key' | 'drag' | 'hover';
 
 /** What a native dialog asked and how it was answered. */
 export interface DialogStep {
@@ -108,6 +109,8 @@ export interface RecordedStep {
   keyword?: string;
   /** `dialog` steps only. */
   dialog?: DialogStep;
+  /** `drag` steps only — where it was let go. */
+  dropTarget?: PickResult;
   wait: WaitSpec;
   at: number;
 }
@@ -338,6 +341,21 @@ function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedS
   // put in front of it would be waiting on a page that cannot answer.
   if (step.kind === 'dialog') return { pre: [], call: renderDialog(step) };
 
+  // Mouse Over is a move, not an action on the element; giving it a keyword of
+  // its own would read as though something happened to the thing hovered.
+  if (step.kind === 'hover') {
+    return { pre: wait ? [wait] : [], call: `    Mouse Over    ${v(syms.forTarget(step.target))}` };
+  }
+
+  // Drag And Drop names both ends, so there is no single element for a keyword
+  // to be about.
+  if (step.kind === 'drag' && step.dropTarget) {
+    return {
+      pre: wait ? [wait] : [],
+      call: `    Drag And Drop    ${v(syms.forTarget(step.target))}    ${v(syms.forTarget(step.dropTarget))}`,
+    };
+  }
+
   // Press Keys takes the locator inline; there is no keyword worth defining for
   // "press Enter here".
   if (step.kind === 'key') {
@@ -520,7 +538,13 @@ export function toRobotSuite(rec: Recording, options: SuiteOptions = {}): string
   // clicked earlier, and the button the test actually drives ends up as
   // ${BUG_TYPE_2}. Order of appearance is a worse claim than durability.
   const targets = rec.steps.flatMap((step) =>
-    step.kind === 'navigate' ? [] : [step.target, ...(step.wait.target ? [step.wait.target] : [])],
+    step.kind === 'navigate'
+      ? []
+      : [
+          step.target,
+          ...(step.dropTarget ? [step.dropTarget] : []),
+          ...(step.wait.target ? [step.wait.target] : []),
+        ],
   );
   for (const target of targets.filter((t) => !toRobotLocator(t).fragile)) syms.forTarget(target);
 

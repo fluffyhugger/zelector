@@ -80,6 +80,11 @@ THINGS THAT USUALLY GET IN THE WAY
   one leaves a suite that hangs on it.
 - Enter and Escape are recorded as Press Keys, so a search submitted from the
   keyboard replays as one.
+- Dragging one thing onto another becomes Drag And Drop rather than a click on
+  whichever end the browser fired one over.
+- A menu that opens on hover becomes Mouse Over — but only when the pointer
+  resting there is what put the next click within reach. Passing over something
+  on the way to a button that was already there records nothing.
 - Recording survives navigation, so a login or a checkout records as one flow.
 
 ALSO COPIES A SELECTOR AS
@@ -98,9 +103,7 @@ checked against the code.
 
 WHAT IT DOES NOT DO YET
 
-Drag and drop is not captured, and neither is opening a menu by hovering over
-it — those steps are simply missing from the recording rather than recorded
-wrongly. A file upload records which file was chosen but cannot record where it
+A file upload records which file was chosen but cannot record where it
 came from, because the browser does not tell anyone that; the path is left as a
 placeholder with the name in a comment. Cross-origin iframes give a frame
 selector that is a guess, and it is labelled as one.

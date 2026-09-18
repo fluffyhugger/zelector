@@ -22,6 +22,7 @@ interface Summary {
   keyword: string;
   locator: string;
   value?: string;
+  dropTarget?: string;
   wait: string;
   waitTarget?: string;
   reason: string;
@@ -31,6 +32,8 @@ interface Summary {
 const keywordOf = (step: RecordedStep): string => {
   if (step.kind === 'navigate') return 'Go To';
   if (step.kind === 'key') return 'Press Keys';
+  if (step.kind === 'drag') return 'Drag And Drop';
+  if (step.kind === 'hover') return 'Mouse Over';
   if (step.dialog) {
     return step.dialog.kind === 'prompt' && step.dialog.accepted
       ? 'Input Text Into Alert'
@@ -43,6 +46,7 @@ const summarise = (step: RecordedStep): Summary => ({
   keyword: keywordOf(step),
   locator: toRobotLocator(step.target).value,
   ...(step.value === undefined ? {} : { value: step.value }),
+  ...(step.dropTarget ? { dropTarget: toRobotLocator(step.dropTarget).value } : {}),
   wait: step.wait.kind,
   ...(step.wait.target ? { waitTarget: toRobotLocator(step.wait.target).value } : {}),
   reason: step.wait.reason,

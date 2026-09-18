@@ -31,6 +31,12 @@ const MAX_TRACKED = 16;
 export interface PageChange {
   /** Appeared during the window and still there when it closed. */
   appeared: PickResult[];
+  /**
+   * The same elements, undescribed. Never leaves this world — it is here so a
+   * caller can ask whether the thing about to be clicked is inside something
+   * that just arrived, which no amount of comparing locators can answer.
+   */
+  appearedEls: Element[];
   /** Appeared and was gone again before the window closed — a spinner, a toast. */
   transient: PickResult[];
   requests: CapturedResponse[];
@@ -47,6 +53,7 @@ export interface PageChange {
 
 export const emptyChange = (): PageChange => ({
   appeared: [],
+  appearedEls: [],
   transient: [],
   requests: [],
   rerendered: false,
@@ -80,6 +87,32 @@ function stillOnScreen(result: PickResult): boolean {
   } catch {
     return false; // a selector the page will not accept tells us nothing
   }
+}
+
+/**
+ * Did this attribute change take something from hidden to shown?
+ *
+ * Most menus and dialogs are built once and toggled, so they never arrive as
+ * new nodes — and a menu that opens by dropping its `hidden` attribute looked,
+ * to an observer watching only for additions, exactly like nothing happening.
+ *
+ * Only the changes that say so on their face are read this way. A class that
+ * merely changed could mean anything, and treating every restyle as an arrival
+ * would bury the ones that are.
+ */
+function wasRevealed(record: MutationRecord): boolean {
+  const el = record.target;
+  if (!(el instanceof Element) || !isVisible(el)) return false;
+
+  const name = record.attributeName;
+  const before = record.oldValue;
+
+  if (name === 'hidden') return before !== null && !el.hasAttribute('hidden');
+  if (name === 'aria-hidden') return before === 'true' && el.getAttribute('aria-hidden') !== 'true';
+  if (name === 'style') {
+    return /display:\s*none|visibility:\s*hidden|opacity:\s*0(?!\.)/i.test(before ?? '');
+  }
+  return false;
 }
 
 function isVisible(el: Element): boolean {
@@ -147,10 +180,14 @@ export function watchPageChange(onQuiet: (change: PageChange) => void): Watch {
     for (const record of records) {
       record.addedNodes.forEach(consider);
       record.removedNodes.forEach(retire);
-      // An element hidden in place never leaves the tree, but it is gone as
-      // far as Wait Until Element Is Not Visible is concerned.
       if (record.type === 'attributes' && record.target instanceof Element) {
-        if (pending.has(record.target) && !isVisible(record.target)) retire(record.target);
+        // An element hidden in place never leaves the tree, but it is gone as
+        // far as Wait Until Element Is Not Visible is concerned.
+        if (pending.has(record.target) && !isVisible(record.target)) {
+          retire(record.target);
+        } else if (wasRevealed(record)) {
+          consider(record.target);
+        }
       }
     }
     restartQuietTimer();
@@ -172,6 +209,7 @@ export function watchPageChange(onQuiet: (change: PageChange) => void): Watch {
     const url = location.href !== startUrl ? location.href : undefined;
     settled = {
       appeared,
+      appearedEls: arrivals,
       transient: departures,
       requests: capturedResponses.slice(requestMark),
       ...(url ? { url } : {}),
@@ -193,6 +231,9 @@ export function watchPageChange(onQuiet: (change: PageChange) => void): Watch {
     childList: true,
     subtree: true,
     attributes: true,
+    // The old value is what makes a reveal legible: without it, an element that
+    // is visible now is just an element that is visible now.
+    attributeOldValue: true,
     attributeFilter: ['class', 'style', 'hidden', 'aria-hidden', 'aria-busy'],
   });
   restartQuietTimer();

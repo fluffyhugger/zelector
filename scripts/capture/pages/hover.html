@@ -1,0 +1,31 @@
+<!doctype html><meta charset="utf-8"><title>hover menu</title><link rel=stylesheet href=_base.css>
+<!-- The submenu only exists while the pointer rests on File. Without the hover
+     the click below it has nothing to land on, and a recording that omits it
+     replays as a click into empty space. -->
+<style>
+  .bar { display: flex; gap: 4px; }
+  .top { padding: 8px 14px; background: #eee; cursor: default; }
+  .menu { position: absolute; margin-top: 4px; background: #fff;
+          box-shadow: 0 4px 16px rgba(0,0,0,.2); min-width: 160px; }
+  .menu button { display: block; width: 100%; text-align: left; padding: 10px 14px;
+                 background: none; border: 0; cursor: pointer; }
+  #plain { margin-top: 220px; }
+</style>
+<div class="bar">
+  <div class="top" id="file">File</div>
+  <div class="top" id="edit">Edit</div>
+</div>
+<div id="menu" class="menu" hidden>
+  <button id="export" type="button">Export…</button>
+</div>
+
+<!-- A button that was there all along: hovering past it on the way must not
+     turn into a step. -->
+<button id="plain" type="button">Already here</button>
+
+<script>
+  const menu = document.getElementById('menu');
+  document.getElementById('file').addEventListener('pointerover', () => { menu.hidden = false; });
+  document.getElementById('export').addEventListener('click', () => { menu.hidden = true; });
+</script>
+<script src="harness.js"></script>

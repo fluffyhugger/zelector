@@ -137,6 +137,29 @@ def upload(driver):
     time.sleep(1.2)
 
 
+def drag(driver):
+    card = driver.find_element(By.ID, "card-1")
+    done = driver.find_element(By.ID, "done")
+    ActionChains(driver).click_and_hold(card).move_to_element(done).pause(0.3).release().perform()
+    time.sleep(1.2)
+
+
+def hover_menu(driver):
+    chain = ActionChains(driver)
+    chain.move_to_element(driver.find_element(By.ID, "file")).pause(0.6)
+    chain.click(driver.find_element(By.ID, "export")).perform()
+    time.sleep(1.2)
+
+
+def hover_past(driver):
+    # Across a menu title and on to a button that was always there. The pointer
+    # passing over something is not a step.
+    chain = ActionChains(driver)
+    chain.move_to_element(driver.find_element(By.ID, "edit")).pause(0.4)
+    chain.click(driver.find_element(By.ID, "plain")).perform()
+    time.sleep(1.2)
+
+
 def checkbox(driver):
     label = driver.find_element(By.CSS_SELECTOR, "label[for=agree]")
     label.click()
@@ -238,6 +261,35 @@ CASES = [
             (s and s[0]["keyword"] == "Choose File", f"keyword was {s[0]['keyword'] if s else None}"),
             (s and s[0].get("value") == "zelector-sample.png",
              f"the file name came out as {s[0].get('value') if s else None}"),
+        ],
+    ),
+    Case(
+        "a press that travels is a drag",
+        "drag.html", drag,
+        lambda s: [
+            (len(s) == 1, f"expected one step, got {len(s)}: {[x['keyword'] for x in s]}"),
+            (s and s[0]["keyword"] == "Drag And Drop", f"keyword was {s[0]['keyword'] if s else None}"),
+            (s and s[0]["locator"] == "id:card-1", f"source was {s[0]['locator'] if s else None}"),
+            (s and s[0].get("dropTarget") == "id:done", f"target was {s[0].get('dropTarget') if s else None}"),
+        ],
+    ),
+    Case(
+        "a hover that opens a menu is the step before the choice",
+        "hover.html", hover_menu,
+        lambda s: [
+            (len(s) == 2, f"expected two steps, got {len(s)}: {[x['keyword'] for x in s]}"),
+            (s and s[0]["keyword"] == "Mouse Over" and s[0]["locator"] == "id:file",
+             f"the hover came out as {s[0] if s else None}"),
+            (len(s) > 1 and s[1]["locator"] == "id:export",
+             f"the choice came out as {s[1]['locator'] if len(s) > 1 else None}"),
+        ],
+    ),
+    Case(
+        "passing over something on the way is not a step",
+        "hover.html", hover_past,
+        lambda s: [
+            (len(s) == 1, f"expected one step, got {len(s)}: {[x['keyword'] for x in s]}"),
+            (s and s[0]["locator"] == "id:plain", f"step targeted {s[0]['locator'] if s else None}"),
         ],
     ),
     Case(

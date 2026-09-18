@@ -250,6 +250,8 @@ export class RecPanel {
       step.kind === 'navigate' ? 'Go To'
       : step.kind === 'dialog' ? dialogKeyword(step)
       : step.kind === 'key' ? 'Press Keys'
+      : step.kind === 'drag' ? 'Drag And Drop'
+      : step.kind === 'hover' ? 'Mouse Over'
       : null;
     const keywordPicker = fixed
       ? h('span', { class: 'kw', text: fixed })

@@ -164,4 +164,23 @@ const keyFlow: Recording = {
 };
 
 writeFileSync('rf/_recorded_keys.robot', toRobotSuite(keyFlow));
+
+// A menu opened by hovering, and a card moved from one column to another.
+const pointerFlow: Recording = {
+  active: false,
+  startedAt: Date.UTC(2026, 8, 18),
+  startUrl: 'https://example.com/board',
+  name: 'Move A Card',
+  steps: [
+    { kind: 'hover', target: el('div', { id: 'file-menu' }, 'File', '#file-menu'),
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    { kind: 'click', target: el('button', { id: 'export' }, 'Export', '#export'),
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    { kind: 'drag', target: el('div', { id: 'card-1' }, '', '#card-1'),
+      dropTarget: el('div', { id: 'done' }, '', '#done'),
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+  ].map(step),
+};
+
+writeFileSync('rf/_recorded_pointer.robot', toRobotSuite(pointerFlow));
 console.log('wrote rf/_recorded_flow.robot, rf/_recorded_iframe.robot');
