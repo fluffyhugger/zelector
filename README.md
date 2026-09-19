@@ -47,6 +47,18 @@ Assertions are the part no recorder can capture by watching, so the panel keeps
 a **＋ Add assertion** button on screen: it opens the picker, and the keyword
 list becomes the list of assertions you can append.
 
+The awkward things are recorded too, because leaving them out is how a suite
+comes to hang on something it never mentions:
+
+| | |
+|---|---|
+| `alert` / `confirm` / `prompt` | `Handle Alert`, `Input Text Into Alert` — browser chrome, so there is no element to pick and no event to listen for |
+| Enter, Escape | `Press Keys` — a search submitted from the keyboard replays as one |
+| dragging | `Drag And Drop`, both ends, rather than a click on whichever the browser fired one over |
+| hover menus | `Mouse Over`, whether the menu is opened by script or by a `:hover` rule that moves no nodes at all |
+| file pickers | `Choose File`, with the chosen name in a comment — the browser will not say where the file came from |
+| a URL typed by hand | `Go To`, since nothing clicked led there |
+
 The recording survives navigation: it lives in the service worker, and the new
 page picks it back up — which also turns the click that navigated into a
 `Wait Until Location Contains`.
@@ -134,6 +146,34 @@ roots are reachable. The isolated script exists solely to reach `chrome.runtime`
 There's no `innerHTML` anywhere either: pages sending `require-trusted-types-for
 'script'` reject every sink that takes an HTML string, so nodes are built by hand in
 `src/main-world/dom-build.ts`.
+
+## Tests
+
+```bash
+npm test
+```
+
+Five passes, each for a kind of mistake the others let through:
+
+- **scoring** — a table of identifiers seen on real pages, and what each should
+  count as. `shrink-0` is a Tailwind utility, `css-1nmdiq5-menu` is a hash
+  wearing a label, and `material-price` is a name that merely starts like one
+  of Angular Material's counters.
+- **exports** — every target parsed in its own language: Python through `ast`,
+  TypeScript and JavaScript through esbuild, CSS through its parser, Java
+  through `javac`. The cases carry quotes, backslashes and Thai text, because
+  a template breaks on the quote character it uses.
+- **snapshots** — the generated suites, committed. Output that is valid and
+  quietly worse shows up as a diff rather than as a surprise.
+- **capture** — seventeen recordings driven through WebDriver. Every one is a
+  bug that happened: a pause mid-typing, a checkbox under its label, a menu
+  that opens on mousedown, another extension's markup.
+- **robot** — every generated suite through the real Robot Framework parser,
+  and no variable declared that nothing uses.
+
+Parsing is not verification. The first suite that actually ran found a keyword
+argument overwriting its own locator, which four green fixtures had nothing to
+say about.
 
 ## Scoring
 
