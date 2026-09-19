@@ -67,7 +67,12 @@ export const emptyChange = (): PageChange => ({
 function identity(el: Element): string {
   const attrs = el.attributes;
   const test = el.getAttribute('data-testid') ?? el.getAttribute('data-test') ?? '';
-  return `${el.tagName}#${el.id}[${test}].${el.className}:${attrs.length}`;
+  // getAttribute rather than className: on an SVG, className is an
+  // SVGAnimatedString, and interpolating one gives the same
+  // "[object SVGAnimatedString]" for every icon on the page — so a spinner
+  // leaving and an unrelated icon arriving looked like one element being
+  // redrawn, and both were discarded.
+  return `${el.tagName}#${el.id}[${test}].${el.getAttribute('class') ?? ''}:${attrs.length}`;
 }
 
 /**

@@ -211,6 +211,10 @@ export class Recorder {
       this.name = this.name || titleCase(document.title);
     }
 
+    // A single-page app can add stylesheets long after load, so the hover rules
+    // are re-read for each recording rather than once per page.
+    forgetHoverSelectors();
+
     // Watch from the moment recording starts, not from the first step. Without
     // this the opening action has nothing to go on and always came out as
     // "the page was still settling" — and a hover that opens a menu could never
@@ -380,9 +384,14 @@ export class Recorder {
     });
   };
 
+  /**
+   * Kept cheap on purpose: this fires on every pixel of pointer movement, and
+   * what it records is thrown away almost every time. The element is stored
+   * raw and only resolved if a click later turns out to have needed it.
+   */
   private onPointerOver = (event: PointerEvent): void => {
     if (!this.capturing || isNotPageContent(event.target)) return;
-    const el = event.target instanceof Element ? resolveTarget(event.target) : null;
+    const el = event.target instanceof Element ? event.target : null;
     if (!el || el === this.hovering?.el) return;
 
     const leaving = this.hovering;
@@ -627,6 +636,9 @@ export class Recorder {
     const opener = this.hoverThatRevealed(el, settled);
     if (!opener) return;
     this.lastRested = null;
+    // Not resolved: resolveTarget finds the thing a click meant, and looking
+    // inside a hover subject finds whatever it reveals — which is the element
+    // the hover exists to make reachable, not the one to hover.
     this.push({ kind: 'hover', target: describe(opener) });
   }
 
@@ -772,6 +784,10 @@ function isHitTestable(el: HTMLElement): boolean {
  * will not read out.
  */
 let hoverSubjects: string[] | null = null;
+
+export function forgetHoverSelectors(): void {
+  hoverSubjects = null;
+}
 
 function revealingHoverSelectors(): string[] {
   if (hoverSubjects) return hoverSubjects;
