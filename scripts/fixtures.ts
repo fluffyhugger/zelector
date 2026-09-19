@@ -9,7 +9,11 @@ const cases: Array<[string, PickResult]> = [
   ['testid_button', { ...base, tagName: 'button', text: 'ยืนยันการสั่งซื้อ', attributes: { 'data-testid': 'confirm-order', type: 'submit' }, candidates: [{ kind:'testid', engine:'css', value:'[data-testid="confirm-order"]', score:98, matches:1, notes:[] }] }],
   ['password', { ...base, tagName: 'input', text: '', attributes: { type:'password', name:'password', id:'login-pw' }, candidates: [{ kind:'id', engine:'css', value:'#login-pw', score:85, matches:1, notes:[] }] }],
   ['select', { ...base, tagName: 'select', text: '', attributes: { name:'country', id:'country-select' }, candidates: [{ kind:'id', engine:'css', value:'#country-select', score:85, matches:1, notes:[] }] }],
-  ['link', { ...base, tagName: 'a', text: 'Terms of Service', attributes: { href:'/tos' }, candidates: [{ kind:'attr', engine:'css', value:'a[href="/tos"]', score:60, matches:1, notes:[] }] }],
+  // linkTextMatches is what describe() measures on a real page; without it the
+  // link: strategy is correctly refused, and the fixture would be testing a
+  // shape that never reaches the generator.
+  ['link', { ...base, tagName: 'a', text: 'Terms of Service', linkTextMatches: 1, attributes: { href:'/tos' }, candidates: [{ kind:'attr', engine:'css', value:'a[href="/tos"]', score:60, matches:1, notes:[] }] }],
+  ['link_repeated', { ...base, tagName: 'a', text: 'View profile', linkTextMatches: 3, attributes: { href:'/users/3' }, candidates: [{ kind:'attr', engine:'css', value:'a[href="/users/3"]', score:62, matches:1, notes:[] }] }],
   ['checkbox', { ...base, tagName: 'input', text: '', attributes: { type:'checkbox', 'data-cy':'accept-terms' }, candidates: [{ kind:'testid', engine:'css', value:'[data-cy="accept-terms"]', score:98, matches:1, notes:[] }] }],
   ['radio', { ...base, tagName: 'input', text: '', attributes: { type:'radio', name:'shipping_method', value:'express', id:'ship-express' }, candidates: [{ kind:'id', engine:'css', value:'#ship-express', score:85, matches:1, notes:[] }] }],
   ['file', { ...base, tagName: 'input', text: '', attributes: { type:'file', id:'avatar' }, candidates: [{ kind:'id', engine:'css', value:'#avatar', score:85, matches:1, notes:[] }] }],
@@ -71,7 +75,7 @@ const flow: Recording = {
       wait: { kind: 'none', timeoutS: 10, reason: '' } },
     { kind: 'click', target: el('button', { id: 'sign-in', type: 'submit' }, 'Sign in'),
       wait: { kind: 'not-visible', target: spinner, timeoutS: 15, reason: '' } },
-    { kind: 'click', target: el('a', { href: '/orders' }, 'My Orders'),
+    { kind: 'click', target: { ...el('a', { href: '/orders' }, 'My Orders', 'a[href="/orders"]'), linkTextMatches: 1 },
       wait: { kind: 'location', urlFragment: '/dashboard', timeoutS: 20, reason: '' } },
     { kind: 'select', target: el('select', { name: 'status' }), value: 'Shipped',
       wait: { kind: 'contains', target: el('table', { id: 'orders' }), timeoutS: 10, reason: '' } },
