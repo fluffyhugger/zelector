@@ -113,6 +113,11 @@ def check_scoring(driver):
     expect('a[href="/users/1"]', 'css:a[href="/users/1"]',
            "two links read the same, so the text cannot be the locator")
 
+    expect("#dateOfBirthInput", "id:dateOfBirthInput",
+           "a camelCase name reads as high entropy, and is still a name")
+
+    expect("#pay", "id:pay", "the id, not the Vue scoped-style hash stamped beside it")
+
     expect_fragile("#save", False, "a data-testid is what the page offered for this")
     expect_fragile("#rows li:nth-of-type(2) .cell", True,
                    "nothing here identifies the row but its position")
@@ -121,6 +126,16 @@ def check_scoring(driver):
     shrink = locator(driver, ".shrink-0")
     if shrink and "shrink" in shrink["value"]:
         problems.append(f"a Tailwind utility became the locator: {shrink['value']}")
+
+    # A React 19 useId value resolves fastest and survives nothing. The id
+    # branch used to read the attribute without asking the scorer at all.
+    submit = locator(driver, "#_R_ajekmbjqfsua_")
+    if submit and "_R_" in submit["value"]:
+        problems.append(f"a regenerated id became the locator: {submit['value']}")
+
+    # Nothing should reach for a scoped-style attribute, at any score.
+    if any("data-v-" in c["value"] for c in (candidates(driver, "#pay") or [])):
+        problems.append("a Vue scoped-style attribute was offered as a handle")
 
     # And the scorer should not be offering a generated class as identity.
     close = candidates(driver, '[aria-label="Close dialog"]') or []
@@ -238,6 +253,13 @@ def dropdown(driver):
     driver.find_element(By.ID, "control").click()
     time.sleep(1.0)
     driver.find_element(By.ID, "opt-b").click()
+    time.sleep(1.0)
+
+
+def portal_select(driver):
+    driver.find_element(By.ID, "_R_ajekmbjqfsua_").click()
+    time.sleep(1.0)
+    driver.find_element(By.CSS_SELECTOR, '.ant-select-dropdown [title="b11"]').click()
     time.sleep(1.0)
 
 
@@ -403,6 +425,24 @@ CASES = [
              f"the opening click landed on {s[0]['locator'] if s else None}"),
             (len(s) > 1 and s[1]["locator"] == "id:opt-b",
              f"the option click landed on {s[1]['locator'] if len(s) > 1 else None}"),
+        ],
+    ),
+    Case(
+        "a portalled list, and an id that is regenerated every render",
+        "portal-select.html", portal_select,
+        lambda s: [
+            (len(s) == 2, f"expected two steps, got {len(s)}: {[x['locator'] for x in s]}"),
+            # The trigger's id is a React 19 useId value. It resolves fastest and
+            # survives nothing — a recording on the Ant Design docs shipped it as
+            # the locator because the id branch never asked the scorer.
+            (s and "_R_" not in s[0]["locator"],
+             f"a regenerated id became the locator: {s[0]['locator'] if s else None}"),
+            # Both examples on the page display a10, so the title tells them apart
+            # from nothing. The ugly path that follows is the honest answer.
+            (s and s[0]["locator"] != 'css:[title="a10"]',
+             f"the trigger was located by a title two elements share: {s[0]['locator'] if s else None}"),
+            (len(s) > 1 and "b11" in s[1]["locator"],
+             f"the option came out as {s[1]['locator'] if len(s) > 1 else None}"),
         ],
     ),
     Case(

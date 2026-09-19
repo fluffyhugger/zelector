@@ -28,6 +28,7 @@ const CASES = [
   ['Button_root__3kD9a', 'volatile', 'CSS modules'],
   ['_R_ajekmbjqfsua_', 'volatile', 'React 19 useId, from the Ant Design docs'],
   [':r7:', 'volatile', 'React 18 useId'],
+  ['data-v-7ba5bd90', 'volatile', 'Vue scoped styles, from the Element Plus docs'],
   ['a1b2c3d4e5f6a7b8', 'volatile', 'hex hash'],
   ['order-20260918001', 'volatile', 'ends in a record id'],
 
@@ -39,6 +40,12 @@ const CASES = [
   ['px-4', 'utility', 'Tailwind spacing'],
   ['items-center', 'utility', 'Tailwind alignment'],
   ['rounded-lg', 'utility', 'Tailwind'],
+
+  // camelCase is every-letter-different once it is long enough, which is what
+  // the entropy rule measures. DemoQA's date field was thrown out for it.
+  ['dateOfBirthInput', 'keep', 'DemoQA — a name, not a hash'],
+  ['autoCompleteMultipleInput', 'keep', 'DemoQA'],
+  ['submitOrderButton', 'keep', 'camelCase, long'],
 
   ['login-form', 'keep', 'an ordinary class'],
   ['inventory_item_name', 'keep', 'Saucedemo'],

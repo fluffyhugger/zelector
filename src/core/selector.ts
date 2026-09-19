@@ -76,7 +76,14 @@ export function generateCandidates(el: Element): SelectorCandidate[] {
     const unique = isUnique(el, sel);
     push({
       kind: 'id', engine: 'css', value: sel,
-      penalty: (verdict.volatile ? 55 : 0) + (unique ? 0 : 25),
+      // A hashed id has to score below the structural path, not merely below
+      // the good handles. On the Ant Design docs the trigger's only id was a
+      // React 19 useId value: the Robot export had already been taught to
+      // refuse it, but a penalty of 55 still left `css:#_R_ajekmbjqfsua_`
+      // ahead of the path, so the recording shipped it anyway. A locator that
+      // is regenerated on every render is worth less than nth-of-type, which
+      // at least survives until the markup changes.
+      penalty: (verdict.volatile ? 72 : 0) + (unique ? 0 : 25),
       notes: [
         verdict.volatile ? `⚠ ${verdict.reason} — will change on rebuild` : 'stable-looking id',
         ...(unique ? [] : ['⚠ duplicate id on page — invalid HTML']),

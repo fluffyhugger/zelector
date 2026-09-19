@@ -25,6 +25,12 @@ const GENERATED_PATTERNS: Array<[RegExp, string]> = [
   // the page had to offer.
   [/^_R_[a-z0-9]*_$/i,                  'React useId value'],
   [/^«r[0-9a-z]+»$/,                    'React useId value'],
+  // Vue's scoped styles stamp every element in a component with the same
+  // build-time hash: data-v-7ba5bd90. Nothing reaches for it as a locator today
+  // — attributes are chosen from an allowlist — but it is a hash wearing a
+  // data- prefix, and the allowlist is the only thing standing between it and a
+  // selector that breaks on the next build.
+  [/^data-v-[0-9a-f]{6,}$/i,           'Vue scoped-style attribute'],
   [/^radix-:/,                          'Radix UI generated id'],
   [/^headlessui-/,                      'Headless UI generated id'],
   [/^mui-\d+$/,                         'MUI generated id'],
@@ -65,7 +71,7 @@ export function classify(token: string): Verdict {
   for (const re of UTILITY_PATTERNS) {
     if (re.test(token)) return { volatile: false, utility: true, reason: 'utility/styling class' };
   }
-  if (entropy(token) > 3.6 && token.length >= 8 && !/[-_]/.test(token)) {
+  if (entropy(token) > 3.6 && token.length >= 8 && !/[-_]/.test(token) && !readsAsWords(token)) {
     return { volatile: true, utility: false, reason: 'high-entropy string — looks generated' };
   }
   return { volatile: false, utility: false };
@@ -107,6 +113,22 @@ export const isUseless = (t: string) => {
   const v = classify(t);
   return v.volatile || v.utility;
 };
+
+/**
+ * camelCase reads as high entropy once it is long enough: every letter
+ * different and no separator to split on. `dateOfBirthInput` scored 3.7 and was
+ * thrown out as a hash — which is how DemoQA's date field came to be located by
+ * `input.react-datepicker-ignore-onclickoutside`, a class the library adds only
+ * while the calendar is open and which is therefore absent at the moment the
+ * replay needs to click the field.
+ *
+ * A generated token is one run of characters. A name has word boundaries, and
+ * every word in it has a vowel.
+ */
+function readsAsWords(token: string): boolean {
+  const words = token.replace(/([a-z0-9])([A-Z])/g, '$1 $2').split(/\s+/);
+  return words.length >= 2 && words.every((w) => w.length >= 2 && /[aeiouy]/i.test(w));
+}
 
 /** Shannon entropy per character — generated ids score high, human words low. */
 function entropy(s: string): number {

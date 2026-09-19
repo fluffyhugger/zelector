@@ -1,0 +1,50 @@
+<!doctype html><meta charset="utf-8"><title>portal select</title><link rel=stylesheet href=_base.css>
+<!-- Ant Design's docs page, reduced to what broke on it.
+
+     The trigger's only id is a React 19 useId value, regenerated on every
+     render, and it was being emitted as the best locator the page had. The
+     value shown in the trigger carries title="a10" — and so does every other
+     example of the same component further down, which is why that title
+     identifies nothing while the list's own b11 does.
+
+     The options are appended to <body> when the list opens, the way antd,
+     Element Plus and MUI all place a dropdown, so nothing links them to the
+     trigger by position. -->
+<div id="app">
+  <div class="ant-select" data-v-7ba5bd90>
+    <div id="_R_ajekmbjqfsua_" class="ant-select-selector" role="combobox" tabindex="0"
+         style="width:220px;padding:10px;border:1px solid #999">
+      <span class="ant-select-selection-item" title="a10">a10</span>
+    </div>
+  </div>
+
+  <!-- The second example on the page. Identical, which is the whole point. -->
+  <div class="ant-select" data-v-7ba5bd90>
+    <div id="_R_bjfmcdkrgtvb_" class="ant-select-selector" role="combobox" tabindex="0"
+         style="width:220px;padding:10px;border:1px solid #999;margin-top:12px">
+      <span class="ant-select-selection-item" title="a10">a10</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Opens on mousedown, into a portal at the end of <body>.
+  for (const trigger of document.querySelectorAll('.ant-select-selector')) {
+    trigger.addEventListener('mousedown', () => {
+      document.querySelector('.ant-select-dropdown')?.remove();
+      const list = document.createElement('div');
+      list.className = 'ant-select-dropdown';
+      list.style.cssText = 'position:absolute;left:12px;top:120px;width:220px;background:#fff;border:1px solid #999';
+      for (const value of ['a10', 'b11', 'c12']) {
+        const option = document.createElement('div');
+        option.className = 'ant-select-item';
+        option.title = value;
+        option.textContent = value;
+        option.style.padding = '10px';
+        list.appendChild(option);
+      }
+      document.body.appendChild(list);
+    });
+  }
+</script>
+<script src="harness.js"></script>
