@@ -337,10 +337,6 @@ function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedS
   // A dialog is not an element, so it has no locator, no keyword definition and
   // nothing to wait for — it is already on screen and blocking when the step
   // after it runs. It goes straight into the test case.
-  // No wait of any kind: the dialog is already up and blocking, and anything
-  // put in front of it would be waiting on a page that cannot answer.
-  if (step.kind === 'dialog') return { pre: [], call: renderDialog(step) };
-
   // Mouse Over is a move, not an action on the element; giving it a keyword of
   // its own would read as though something happened to the thing hovered.
   if (step.kind === 'hover') {

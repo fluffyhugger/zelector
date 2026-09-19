@@ -127,8 +127,9 @@ const dialogFlow: Recording = {
   steps: [
     { kind: 'click', target: el('button', { id: 'save' }, 'Save', '#save'),
       wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    // A wait the dialog step must throw away without leaving a variable behind.
     { kind: 'dialog', target: el('html', {}), dialog: { kind: 'alert', message: 'Saved.', accepted: true },
-      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+      wait: { kind: 'visible', target: el('div', { id: 'toast' }, '', '#toast'), timeoutS: 10, reason: '' } },
     { kind: 'click', target: el('button', { id: 'delete' }, 'Delete', '#delete'),
       wait: { kind: 'none', timeoutS: 10, reason: '' } },
     { kind: 'dialog', target: el('html', {}),

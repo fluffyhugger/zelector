@@ -6,7 +6,7 @@
  *   npm run test:robot
  */
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdtempSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -43,4 +43,29 @@ for p in sorted(glob.glob('rf/*.robot')):
 sys.exit(1 if bad else 0)
 `;
 execFileSync(python, ['-c', script], { stdio: 'inherit' });
-console.log('\nAll generated Robot Framework files parse cleanly.');
+
+/**
+ * A variable nothing refers to is a step that was dropped after its locator had
+ * already been claimed — which is how a dialog step left `class:no-js` sitting
+ * in the Variables table of a real recording.
+ */
+const orphans = [];
+for (const file of readdirSync(path.join(out, 'rf')).filter((f) => f.endsWith('.robot'))) {
+  const text = readFileSync(path.join(out, 'rf', file), 'utf8');
+  // Only the suites. A single-element export is all Keywords and no test case,
+  // so everything in it would read as unused.
+  const start = text.indexOf('*** Test Cases ***');
+  if (start === -1) continue;
+  const body = text.slice(start);
+  const declared = [...text.matchAll(/^\$\{([A-Z_0-9]+)\}\s{2,}/gm)].map((m) => m[1]);
+  const unused = declared.filter((name) => !body.includes(`\${${name}}`));
+  if (unused.length) orphans.push(`${file}: ${unused.join(', ')}`);
+}
+
+if (orphans.length) {
+  console.log('\nVariables declared and never used:');
+  for (const line of orphans) console.log(`  ${line}`);
+  process.exit(1);
+}
+
+console.log('\nAll generated Robot Framework files parse cleanly, with nothing declared unused.');
