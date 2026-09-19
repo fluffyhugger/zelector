@@ -167,12 +167,37 @@ export class Recorder {
     this.name = recording.name ?? '';
     this.doc = recording.doc ?? '';
     this.ui = recording.ui ?? {};
-    if (this.steps.length) {
-      this.pending = {
-        forIndex: this.steps.length,
-        change: { ...emptyChange(), url: location.href, elapsedMs: 1000 },
-      };
+    if (!this.steps.length) return;
+
+    // Two ways to arrive on a new page, and they need opposite things.
+    //
+    // A recorded click that navigated is already accounted for: the next step
+    // gets Wait Until Location Contains and the replay follows along on its
+    // own. But a URL typed into the address bar, or a bookmark, leaves no trace
+    // at all — the replay stays where it was and every step after it looks for
+    // things that are not there. That is a suite that opens the wrong page.
+    //
+    // Nothing distinguishes them except time: a navigation a click caused
+    // follows it within a second or two, and one a person chose does not.
+    const last = this.steps[this.steps.length - 1]!;
+    const followedAnAction = Date.now() - last.at < NAVIGATION_GRACE;
+
+    if (!followedAnAction && last.target.url !== location.href) {
+      this.steps.push({
+        id: nextId(),
+        kind: 'navigate',
+        target: describe(document.documentElement),
+        value: location.href,
+        wait: { kind: 'none', timeoutS: 10, reason: 'opened directly — no recorded step led here' },
+        at: Date.now(),
+      });
+      return;   // the Go To is the arrival; nothing left to wait for
     }
+
+    this.pending = {
+      forIndex: this.steps.length,
+      change: { ...emptyChange(), url: location.href, elapsedMs: 1000 },
+    };
   }
 
   start(): void {
@@ -289,14 +314,6 @@ export class Recorder {
   /** An assertion chosen through the picker, inserted at the end of the flow. */
   addAssert(target: PickResult, keyword: string): void {
     this.push({ kind: 'assert', target, keyword });
-  }
-
-  /** A navigation the user performed by hand rather than by clicking. */
-  noteNavigation(url: string): void {
-    const last = this.steps[this.steps.length - 1];
-    // A click that navigates already carries the URL in its wait; do not double up.
-    if (last?.wait.kind === 'location') return;
-    this.push({ kind: 'navigate', target: describe(document.documentElement), value: url });
   }
 
   // ── Capture ────────────────────────────────────────────────────────────────
@@ -739,6 +756,12 @@ const DRAG_THRESHOLD = 12;
 
 /** Long enough to be resting rather than passing through. */
 const HOVER_DWELL = 150;
+
+/**
+ * How soon after a step a navigation still counts as that step's doing. Longer
+ * than a slow redirect, shorter than someone deciding where to go next.
+ */
+const NAVIGATION_GRACE = 2500;
 
 /** Selenium's names for the keys worth recording. */
 const ACTING_KEYS: Record<string, string> = {
