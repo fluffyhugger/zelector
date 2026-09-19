@@ -160,6 +160,18 @@ def hover_past(driver):
     time.sleep(1.2)
 
 
+def hover_css(driver):
+    chain = ActionChains(driver)
+    chain.move_to_element(driver.find_element(By.ID, "card")).pause(0.5)
+    chain.click(driver.find_element(By.ID, "profile")).perform()
+    time.sleep(1.2)
+
+
+def plain_link(driver):
+    driver.find_element(By.ID, "plain-link").click()
+    time.sleep(1.2)
+
+
 def checkbox(driver):
     label = driver.find_element(By.CSS_SELECTOR, "label[for=agree]")
     label.click()
@@ -290,6 +302,25 @@ CASES = [
         lambda s: [
             (len(s) == 1, f"expected one step, got {len(s)}: {[x['keyword'] for x in s]}"),
             (s and s[0]["locator"] == "id:plain", f"step targeted {s[0]['locator'] if s else None}"),
+        ],
+    ),
+    Case(
+        "a menu opened by a stylesheet still needs the hover",
+        "hover-css.html", hover_css,
+        lambda s: [
+            (len(s) == 2, f"expected two steps, got {len(s)}: {[x['keyword'] for x in s]}"),
+            (s and s[0]["keyword"] == "Mouse Over" and s[0]["locator"] == "id:card",
+             f"the hover came out as {s[0] if s else None}"),
+            (len(s) > 1 and s[1]["locator"] == "id:profile",
+             f"the click came out as {s[1]['locator'] if len(s) > 1 else None}"),
+        ],
+    ),
+    Case(
+        "a link that was always visible needs no hover",
+        "hover-css.html", plain_link,
+        lambda s: [
+            (len(s) == 1, f"expected one step, got {len(s)}: {[x['keyword'] for x in s]}"),
+            (s and s[0]["locator"] == "id:plain-link", f"step targeted {s[0]['locator'] if s else None}"),
         ],
     ),
     Case(

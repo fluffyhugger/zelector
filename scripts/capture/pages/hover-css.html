@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><title>css hover</title><link rel=stylesheet href=_base.css>
+<!-- Opened by a stylesheet and nothing else. No nodes move, no attribute
+     changes, no event fires — so an observer watching the DOM sees a page where
+     nothing happened, and the link below can only be reached by hovering. -->
+<style>
+  .figure { position: relative; display: inline-block; padding: 20px; background: #eee; }
+  .figcaption { display: none; position: absolute; left: 0; top: 100%;
+                background: #fff; padding: 10px; box-shadow: 0 4px 16px rgba(0,0,0,.2); }
+  .figure:hover .figcaption { display: block; }
+</style>
+<div class="figure" id="card">
+  <div>Hover me</div>
+  <div class="figcaption"><a id="profile" href="#seen">View profile</a></div>
+</div>
+<!-- Always visible: clicking it must not be blamed on a hover. -->
+<p><a id="plain-link" href="#plain">Always here</a></p>
+<script src="harness.js"></script>

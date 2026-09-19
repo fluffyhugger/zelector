@@ -401,6 +401,11 @@ export class Recorder {
    * already there.
    */
   private hoverThatRevealed(el: Element, change: PageChange | null): Element | null {
+    // Shown by a stylesheet rather than by a script: no mutation to observe, so
+    // the rule itself is the evidence, and it names what has to be hovered.
+    const subject = hoverSubjectFor(el);
+    if (subject) return subject;
+
     const rested = this.lastRested;
     if (!rested || !change || rested === el || rested.contains(el)) return null;
     // It opened when it was clicked, not when it was hovered.
@@ -749,6 +754,65 @@ function isHitTestable(el: HTMLElement): boolean {
   if (rect.width < 1 || rect.height < 1) return false;
   const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2);
   return !!hit && (hit === el || el.contains(hit));
+}
+
+/**
+ * Ancestors whose `:hover` shows something, read from the page's own stylesheets.
+ *
+ * A menu opened by JavaScript announces itself: nodes arrive, or an attribute
+ * changes, and the observer sees it. A menu opened by CSS announces nothing at
+ * all — `.figure:hover .figcaption { display: block }` moves no nodes and fires
+ * no events, so watching the DOM for it is watching for something that never
+ * happens.
+ *
+ * What does exist is the rule. Every selector carrying `:hover` alongside a
+ * declaration that shows or hides something names, in its own first half, the
+ * element that has to be hovered. Collected once, since stylesheets rarely
+ * change after load, and skipped entirely for the cross-origin ones the browser
+ * will not read out.
+ */
+let hoverSubjects: string[] | null = null;
+
+function revealingHoverSelectors(): string[] {
+  if (hoverSubjects) return hoverSubjects;
+  const found = new Set<string>();
+
+  for (const sheet of Array.from(document.styleSheets)) {
+    let rules: CSSRuleList;
+    try {
+      rules = sheet.cssRules;
+    } catch {
+      continue; // a stylesheet from somewhere else; its rules are not ours to read
+    }
+    for (const rule of Array.from(rules)) {
+      if (!(rule instanceof CSSStyleRule) || !rule.selectorText.includes(':hover')) continue;
+      if (!/display|visibility|opacity|transform|max-height/.test(rule.style.cssText)) continue;
+
+      for (const selector of rule.selectorText.split(',')) {
+        const subject = selector.split(':hover')[0]?.trim();
+        // A bare `:hover` rule styles the hovered thing itself, which is not a
+        // reveal — and an empty subject matches everything.
+        if (subject) found.add(subject);
+      }
+    }
+  }
+
+  hoverSubjects = [...found];
+  return hoverSubjects;
+}
+
+/** The nearest ancestor that shows this element only while it is hovered. */
+function hoverSubjectFor(el: Element): Element | null {
+  for (const selector of revealingHoverSelectors()) {
+    let subject: Element | null = null;
+    try {
+      subject = el.closest(selector);
+    } catch {
+      continue; // a selector this engine will not parse
+    }
+    if (subject && subject !== el) return subject;
+  }
+  return null;
 }
 
 /** Far enough that nobody meant it as a click. */
