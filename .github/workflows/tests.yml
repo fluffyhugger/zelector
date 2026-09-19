@@ -1,0 +1,63 @@
+# Everything, on every push.
+#
+# Not a formality. A fix for markup injected by other extensions was committed,
+# pushed, and never ran: the call site still read the old function while the
+# import above it read the new one, and both sides of that commit were green
+# because nothing ran the capture layer at all. Four of the suites below exist
+# because of bugs that reached main.
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # The Robot Framework pass parses generated suites with the real parser,
+      # and the capture pass drives a real browser. Both want a venv at the path
+      # the scripts look for.
+      - name: Set up the Python side
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --quiet --upgrade pip
+          .venv/bin/pip install --quiet robotframework robotframework-seleniumlibrary selenium
+
+      - name: Make sure there is a Chrome
+        run: |
+          if ! command -v google-chrome >/dev/null; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq google-chrome-stable \
+              || { wget -q https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+                   sudo apt-get install -y -qq ./google-chrome-stable_current_amd64.deb; }
+          fi
+          google-chrome --version
+
+      - run: npm test
+
+      # The packaged extension is what people install, so it has to build.
+      - name: Package
+        run: npm run zip
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zelector-zip
+          path: release/*.zip
+          if-no-files-found: error
