@@ -41,6 +41,16 @@ export const CASES: Array<[string, PickResult]> = [
     ...base, tagName: 'button', text: "Don't", attributes: {}, hops: [],
     candidates: [c('role', 'playwright', "getByRole('button', { name: 'Don\\'t' })", 90), c('path', 'css', 'main > button', 20)],
   }],
+  ['link_text_shared', {
+    ...base, tagName: 'a', text: 'View profile', attributes: { href: '/users/3' }, hops: [],
+    linkTextMatches: 3,
+    candidates: [c('attr', 'css', 'a[href="/users/3"]', 62)],
+  }],
+  ['link_text_unique', {
+    ...base, tagName: 'a', text: 'Terms of Service', attributes: { href: '/tos' }, hops: [],
+    linkTextMatches: 1,
+    candidates: [c('attr', 'css', 'a[href="/tos"]', 62)],
+  }],
   ['thai_text', {
     ...base, tagName: 'a', text: 'ยืนยันการสั่งซื้อ', attributes: { href: '/confirm' }, hops: [],
     candidates: [c('attr', 'css', 'a[href="/confirm"]', 60)],

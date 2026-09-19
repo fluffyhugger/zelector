@@ -4,7 +4,7 @@
  */
 import type { ContextHop, PickResult } from '@/core/types';
 import { generateCandidates } from '@/core/selector';
-import { normalizeText } from '@/core/dom';
+import { normalizeText, rootOf } from '@/core/dom';
 import { isClosedShadowHost, shadowRootOf } from './hooks';
 import { isOwnNode, registerOwnHost, unregisterOwnHost } from './ignore';
 import { applyStyle, h, kbdLine, replace } from './dom-build';
@@ -314,10 +314,12 @@ export function describe(el: Element): PickResult {
   const rect = el.getBoundingClientRect();
   const attributes: Record<string, string> = {};
   for (const attr of Array.from(el.attributes)) attributes[attr.name] = attr.value;
+  const text = normalizeText(el.textContent).slice(0, 160);
 
   return {
     tagName: el.tagName.toLowerCase(),
-    text: normalizeText(el.textContent).slice(0, 160),
+    text,
+    ...(el.tagName === 'A' ? { linkTextMatches: countLinksReading(el, text) } : {}),
     attributes,
     hops: contextHops(el),
     candidates: generateCandidates(el),
@@ -325,6 +327,16 @@ export function describe(el: Element): PickResult {
     url: location.href,
     pickedAt: Date.now(),
   };
+}
+
+/**
+ * How many links in this tree read the same. Scoped the way every other count
+ * here is: a link inside a shadow root competes only with its own neighbours.
+ */
+function countLinksReading(el: Element, text: string): number {
+  if (!text) return 0;
+  return Array.from(rootOf(el).querySelectorAll('a'))
+    .filter((link) => normalizeText(link.textContent).slice(0, 160) === text).length;
 }
 
 /** Compact identity line shown next to the highlight box. */

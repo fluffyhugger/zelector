@@ -122,7 +122,14 @@ function baseLocator(result: PickResult): Omit<RobotLocator, 'frames'> {
     };
   }
 
-  if (tag === 'a' && result.text && result.text.length <= 60 && safeForPrefix(result.text)) {
+  // `link:` matches on text, so it is only a locator when one link carries it.
+  // A list of profiles has a "View profile" on every row, and the strategy
+  // would quietly mean the first.
+  const linkTextIsUnique = result.linkTextMatches === 1;
+  if (
+    tag === 'a' && linkTextIsUnique &&
+    result.text && result.text.length <= 60 && safeForPrefix(result.text)
+  ) {
     return {
       strategy: 'link',
       value: `link:${result.text}`,

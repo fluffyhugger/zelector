@@ -50,6 +50,15 @@ export interface PickResult {
   /** Empty when the element sits directly in the top-level document. */
   hops: ContextHop[];
   candidates: SelectorCandidate[];
+  /**
+   * Anchors only: how many links in the same tree carry this text.
+   *
+   * SeleniumLibrary's `link:` strategy matches on the text, so it is only a
+   * locator when the text belongs to one link. A page listing three profiles
+   * has three links reading "View profile", and `link:View profile` silently
+   * means the first of them.
+   */
+  linkTextMatches?: number;
   /** Bounding box at pick time, viewport coordinates. */
   rect: { x: number; y: number; width: number; height: number };
   url: string;
