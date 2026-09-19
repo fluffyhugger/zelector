@@ -1,0 +1,39 @@
+<!doctype html><meta charset="utf-8"><title>date field with a popper</title><link rel=stylesheet href=_base.css>
+<!-- DemoQA's date of birth field, reduced to the two things that matter.
+
+     react-datepicker opens on focus and then positions itself: the panel is
+     there immediately, and the triangle that points at the field is appended a
+     frame or two later, when the popper has measured where it landed. So the
+     page is still changing well after the press that opened it.
+
+     Type, pause half a second, press: the watching window has gone quiet
+     (400ms) but the typing has not been flushed yet (700ms), so the press
+     arrives with no window to close, and the window opened when the typing is
+     finally flushed is already looking at this press's own calendar. The
+     recording that came out of DemoQA asked the click on the date field to
+     wait for the triangle first. -->
+<input id="phone" type="text" placeholder="Mobile number">
+<input id="dob" type="text" readonly placeholder="Pick a date">
+<div id="cal" hidden style="margin-top:8px;padding:12px;background:#eee">
+  <button id="day-9">9</button>
+</div>
+<script>
+  const cal = document.getElementById('cal');
+  document.getElementById('dob').addEventListener('focus', () => {
+    cal.hidden = false;
+    // The popper's second pass.
+    setTimeout(() => {
+      if (document.getElementById('tri')) return;
+      const tri = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      tri.id = 'tri';
+      tri.setAttribute('class', 'datepicker__triangle');
+      tri.setAttribute('width', '12');
+      tri.setAttribute('height', '12');
+      const poly = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      poly.setAttribute('points', '0,12 6,0 12,12');
+      tri.appendChild(poly);
+      cal.prepend(tri);
+    }, 180);
+  });
+</script>
+<script src="harness.js"></script>

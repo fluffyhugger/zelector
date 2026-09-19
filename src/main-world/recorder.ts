@@ -84,6 +84,18 @@ export class Recorder {
    */
   private pressed: { el: Element; x: number; y: number; at: number } | null = null;
   /**
+   * When the pointer last went down, kept after the press is consumed.
+   *
+   * onPointerDown closes the watching window, which is what keeps a calendar
+   * off the step that opens it — but only when a window is open to close. A
+   * pause between typing and pressing leaves none: the window goes quiet after
+   * 400ms while the typing is not flushed for 700ms, so the press lands in the
+   * gap and the window that opens when the typing is finally flushed is already
+   * watching the calendar this press opened. Recorded on DemoQA: the click on
+   * the date field was preceded by a wait for react-datepicker's triangle.
+   */
+  private pressedAt = 0;
+  /**
    * The element the last click resolved to. Kept because a <label> forwards its
    * click to its control, and the forwarded event carries no coordinates — so
    * the second arrival resolves to the control while the first resolved to the
@@ -342,6 +354,7 @@ export class Recorder {
     const el = deepElementFromPoint(event.clientX, event.clientY)
       ?? (event.target instanceof Element ? event.target : null);
     this.pressed = el ? { el, x: event.clientX, y: event.clientY, at: Date.now() } : null;
+    this.pressedAt = Date.now();
 
     if (!this.watch) return;
     this.pending = { forIndex: this.steps.length, change: this.watch.settle() };
@@ -671,8 +684,13 @@ export class Recorder {
     const index = this.steps.length;
     // Close the window on the previous action first. Whatever the page does
     // from here belongs to this step, not the one before it.
+    //
+    // A step the pointer produced closes it at the press rather than now: a
+    // window opened in between is watching what the press did, and that is the
+    // next step's business.
+    const fromPointer = PRESS_STEPS.has(partial.kind) && Date.now() - this.pressedAt < PRESS_GRACE;
     const change = this.watch
-      ? this.watch.settle()
+      ? this.watch.settle(fromPointer ? this.pressedAt : undefined)
       : this.pending?.forIndex === index
         ? this.pending.change
         : null;
@@ -842,6 +860,10 @@ const HOVER_DWELL = 150;
  * than a slow redirect, shorter than someone deciding where to go next.
  */
 const NAVIGATION_GRACE = 2500;
+
+/** Steps a press produces, and how long after one the press still explains it. */
+const PRESS_STEPS = new Set<StepKind>(['click', 'check', 'drag']);
+const PRESS_GRACE = 2000;
 
 /** Selenium's names for the keys worth recording. */
 const ACTING_KEYS: Record<string, string> = {

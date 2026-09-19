@@ -129,8 +129,15 @@ function isVisible(el: Element): boolean {
 }
 
 export interface Watch {
-  /** Close the window now and return what changed. Safe to call twice. */
-  settle(): PageChange;
+  /**
+   * Close the window now and return what changed. Safe to call twice.
+   *
+   * `notAfter` drops arrivals first seen at or after that moment: when the
+   * window was opened after the pointer already went down, what it is watching
+   * is the press's own doing and not a precondition of the step the press is
+   * about to become.
+   */
+  settle(notAfter?: number): PageChange;
 }
 
 /**
@@ -147,6 +154,8 @@ export function watchPageChange(onQuiet: (change: PageChange) => void): Watch {
 
   /** Elements seen appearing, still attached as far as we know. */
   const pending = new Set<Element>();
+  /** When each of them was first seen, so a caller can cut the window short. */
+  const firstSeen = new Map<Element, number>();
   /**
    * What was taken out of the page during the window.
    *
@@ -169,6 +178,7 @@ export function watchPageChange(onQuiet: (change: PageChange) => void): Watch {
     if (pending.size >= MAX_TRACKED) return;
     if (!isVisible(node)) return;
     pending.add(node);
+    if (!firstSeen.has(node)) firstSeen.set(node, Date.now());
   };
 
   const retire = (node: Node): void => {
@@ -198,13 +208,15 @@ export function watchPageChange(onQuiet: (change: PageChange) => void): Watch {
     restartQuietTimer();
   });
 
-  function finish(quiet: boolean): PageChange {
+  function finish(quiet: boolean, notAfter = Infinity): PageChange {
     if (settled) return settled;
     clearTimeout(quietTimer);
     clearTimeout(hardStop);
     observer.disconnect();
 
-    const visible = [...pending].filter(isVisible);
+    const visible = [...pending]
+      .filter(isVisible)
+      .filter((el) => (firstSeen.get(el) ?? 0) < notAfter);
     // Anything matching something removed in the same window came back rather
     // than arrived, and is no use as a thing to wait for.
     const arrivals = visible.filter((el) => !removed.has(identity(el)));
@@ -243,7 +255,7 @@ export function watchPageChange(onQuiet: (change: PageChange) => void): Watch {
   });
   restartQuietTimer();
 
-  return { settle: () => finish(false) };
+  return { settle: (notAfter?: number) => finish(false, notAfter) };
 }
 
 export function timeoutFor(change: PageChange): number {

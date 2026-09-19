@@ -175,6 +175,26 @@ def date_after_typing(driver):
     time.sleep(1.0)
 
 
+def date_after_a_pause(driver):
+    """
+    Type, think for half a second, then press the date field.
+
+    The window that watches the page goes quiet after 400ms and the typing is
+    not flushed for 700ms, so a pause between the two lands in the gap: the
+    press arrives with no window open to close, and the window that opens when
+    the typing is finally flushed is already watching the calendar this press
+    opened.
+    """
+    phone = driver.find_element(By.ID, "phone")
+    phone.click()
+    phone.send_keys("0812345678")
+    time.sleep(0.5)
+    driver.find_element(By.ID, "dob").click()
+    time.sleep(1.2)
+    driver.find_element(By.ID, "day-9").click()
+    time.sleep(1.0)
+
+
 def dialogs(driver):
     driver.find_element(By.ID, "warn").click()
     driver.switch_to.alert.accept()
@@ -315,6 +335,20 @@ CASES = [
             (len(s) > 1 and s[1]["locator"] == "id:dob",
              f"the date field step targeted {s[1]['locator'] if len(s) > 1 else None}"),
             # The step that opens the calendar cannot be waiting for it.
+            (len(s) > 1 and "tri" not in (s[1].get("waitTarget") or "")
+             and "cal" not in (s[1].get("waitTarget") or ""),
+             f"the calendar was credited to the click that opened it: "
+             f"{s[1].get('waitTarget') if len(s) > 1 else None}"),
+        ],
+    ),
+    Case(
+        "a pause before the press does not hand it the calendar",
+        "datefield-popper.html", date_after_a_pause,
+        lambda s: [
+            (len(s) == 3, f"expected three steps, got {len(s)}: {[x['keyword'] for x in s]}"),
+            # Recorded from DemoQA: the click on the date field was preceded by
+            # "wait until the react-datepicker triangle is visible" — a triangle
+            # that only exists because of that click.
             (len(s) > 1 and "tri" not in (s[1].get("waitTarget") or "")
              and "cal" not in (s[1].get("waitTarget") or ""),
              f"the calendar was credited to the click that opened it: "
