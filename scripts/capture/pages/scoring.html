@@ -1,0 +1,20 @@
+<!doctype html><meta charset="utf-8"><title>scoring</title><link rel=stylesheet href=_base.css>
+<!-- One of each kind of handle a page can offer, so the order the scorer puts
+     them in is checked against a real layout rather than a described one. -->
+<button data-testid="save-order" id="save" class="btn primary">Save</button>
+<button id="cancel" class="btn">Cancel</button>
+<input name="email" type="text" aria-label="Email address">
+<button aria-label="Close dialog" class="css-1x9d8f">×</button>
+<button class="shrink-0 btn">Shrink</button>
+
+<!-- Three that differ only by position: nothing here identifies them. -->
+<ul id="rows">
+  <li><span class="cell">one</span></li>
+  <li><span class="cell">two</span></li>
+  <li><span class="cell">three</span></li>
+</ul>
+
+<!-- Same text on two links; only the href tells them apart. -->
+<a href="/users/1" class="profile">View profile</a>
+<a href="/users/2" class="profile">View profile</a>
+<script src="harness.js"></script>

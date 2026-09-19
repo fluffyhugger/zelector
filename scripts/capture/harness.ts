@@ -14,6 +14,8 @@ import { Recorder } from '@/main-world/recorder';
 import type { RecordedStep } from '@/core/recording';
 import { actionForStep } from '@/core/recording';
 import { toRobotLocator } from '@/core/robot';
+import { generateCandidates } from '@/core/selector';
+import { describe as describeElement } from '@/main-world/picker';
 
 installHooks();
 
@@ -64,6 +66,21 @@ Object.assign(window as unknown as Record<string, unknown>, {
     start: () => recorder.start(),
     stop: () => recorder.stop(),
     steps: () => recorder.snapshot().steps.map(summarise),
+
+    /** What the scorer makes of one element, against a real layout. */
+    candidates: (selector: string) => {
+      const el = document.querySelector(selector);
+      if (!el) return null;
+      return generateCandidates(el).map((c) => ({
+        kind: c.kind, engine: c.engine, value: c.value, score: c.score, matches: c.matches,
+      }));
+    },
+
+    /** And what it would be written as. */
+    locator: (selector: string) => {
+      const el = document.querySelector(selector);
+      return el ? toRobotLocator(describeElement(el)) : null;
+    },
   },
   __steps: [],
 });

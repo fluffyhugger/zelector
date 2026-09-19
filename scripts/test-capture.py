@@ -76,6 +76,60 @@ def steps(driver):
     return driver.execute_script("return window.__zelector.steps()")
 
 
+def locator(driver, selector):
+    return driver.execute_script("return window.__zelector.locator(arguments[0])", selector)
+
+
+def candidates(driver, selector):
+    return driver.execute_script("return window.__zelector.candidates(arguments[0])", selector)
+
+
+def check_scoring(driver):
+    """
+    The scorer, against a real layout rather than a described one.
+
+    Written as its own pass because the rest of this file drives the recorder,
+    and what is being asked here is narrower: given an element, which handle
+    does the tool reach for, and does it refuse the ones that mean nothing.
+    """
+    problems = []
+
+    def expect(selector, wanted, why):
+        got = locator(driver, selector)
+        if not got or got["value"] != wanted:
+            problems.append(f"{selector}: expected {wanted}, got {got and got['value']}  ({why})")
+
+    def expect_fragile(selector, fragile, why):
+        got = locator(driver, selector)
+        if not got or got["fragile"] != fragile:
+            problems.append(
+                f"{selector}: expected fragile={fragile}, got {got and got['fragile']}  ({why})")
+
+    expect("#save", "data:testid:save-order", "a test hook outranks the id beside it")
+    expect("#cancel", "id:cancel", "an id, with nothing better on offer")
+    expect("[name=email]", "name:email", "a form field's name")
+    expect('[aria-label="Close dialog"]', 'css:[aria-label="Close dialog"]',
+           "the label, not the emotion class next to it")
+    expect('a[href="/users/1"]', 'css:a[href="/users/1"]',
+           "two links read the same, so the text cannot be the locator")
+
+    expect_fragile("#save", False, "a data-testid is what the page offered for this")
+    expect_fragile("#rows li:nth-of-type(2) .cell", True,
+                   "nothing here identifies the row but its position")
+
+    # The classes on that button say nothing about which button it is.
+    shrink = locator(driver, ".shrink-0")
+    if shrink and "shrink" in shrink["value"]:
+        problems.append(f"a Tailwind utility became the locator: {shrink['value']}")
+
+    # And the scorer should not be offering a generated class as identity.
+    close = candidates(driver, '[aria-label="Close dialog"]') or []
+    if any("css-1x9d8f" in c["value"] and c["score"] > 40 for c in close):
+        problems.append("an emotion class scored as though it identified something")
+
+    return problems
+
+
 # ── The cases ────────────────────────────────────────────────────────────────
 
 def typing(driver):
@@ -324,6 +378,12 @@ CASES = [
         ],
     ),
     Case(
+        "the scorer reaches for the right handle",
+        "scoring.html",
+        lambda driver: None,
+        lambda s: [],   # assertions run in check_scoring, which needs the driver
+    ),
+    Case(
         "a covered checkbox is reached through its label",
         "checkbox.html", checkbox,
         lambda s: [
@@ -386,18 +446,24 @@ def main() -> int:
     try:
         for case in CASES:
             driver.get(f"http://127.0.0.1:{port}/{case.page}")
-            driver.execute_script("window.__zelector.start()")
-            case.run(driver)
-            driver.execute_script("window.__zelector.stop()")
-            result = steps(driver)
 
-            problems = [why for ok, why in case.expect(result) if not ok]
+            # The scoring pass asks about elements rather than about a
+            # recording, so it does not drive the recorder at all.
+            if case.page == "scoring.html":
+                problems = check_scoring(driver)
+            else:
+                driver.execute_script("window.__zelector.start()")
+                case.run(driver)
+                driver.execute_script("window.__zelector.stop()")
+                result = steps(driver)
+                problems = [why for ok, why in case.expect(result) if not ok]
             if problems:
                 failures += 1
                 print(f"FAIL  {case.name}")
                 for why in problems:
                     print(f"        {why}")
-                print(f"        steps: {json.dumps(result, indent=10)[:900]}")
+                if case.page != "scoring.html":
+                    print(f"        steps: {json.dumps(result, indent=10)[:900]}")
             else:
                 print(f"ok    {case.name}")
     finally:
