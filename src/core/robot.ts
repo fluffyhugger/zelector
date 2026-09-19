@@ -20,7 +20,7 @@
  *     the worst way for a test to fail.
  */
 import type { PickResult } from './types';
-import { isGeneratedId, isUseless } from './volatility';
+import { classify, isGeneratedId, isUseless } from './volatility';
 
 export interface RobotLocator {
   /** e.g. "data:testid:confirm-order" */
@@ -101,7 +101,11 @@ function baseLocator(result: PickResult): Omit<RobotLocator, 'frames'> {
   }
 
   const id = a['id'];
-  if (id && safeForPrefix(id)) {
+  // An id the scorer calls worthless is worthless here too. This branch read
+  // the attribute directly and never asked, so React 19's useId —
+  // `_R_ajekmbjqfsua_`, regenerated on every render — came out as the best
+  // locator the page had, described as the fastest thing to resolve.
+  if (id && safeForPrefix(id) && !classify(id).volatile) {
     return isGeneratedId(id)
       ? {
           strategy: 'id',

@@ -20,6 +20,11 @@ const GENERATED_PATTERNS: Array<[RegExp, string]> = [
   [/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i, 'UUID'],
   [/^[a-f0-9]{16,}$/i,                  'hex hash'],
   [/^:r[0-9a-z]+:$/,                    'React useId value'],
+  // React 19 changed the shape: _R_ajekmbjqfsua_ rather than :r3:. Same thing,
+  // regenerated on every render, and it was being scored as the best locator
+  // the page had to offer.
+  [/^_R_[a-z0-9]*_$/i,                  'React useId value'],
+  [/^«r[0-9a-z]+»$/,                    'React useId value'],
   [/^radix-:/,                          'Radix UI generated id'],
   [/^headlessui-/,                      'Headless UI generated id'],
   [/^mui-\d+$/,                         'MUI generated id'],

@@ -26,6 +26,8 @@ const CASES = [
   ['makeStyles-root-12', 'volatile', 'MUI'],
   ['_ngcontent-abc-c12', 'volatile', 'Angular view encapsulation'],
   ['Button_root__3kD9a', 'volatile', 'CSS modules'],
+  ['_R_ajekmbjqfsua_', 'volatile', 'React 19 useId, from the Ant Design docs'],
+  [':r7:', 'volatile', 'React 18 useId'],
   ['a1b2c3d4e5f6a7b8', 'volatile', 'hex hash'],
   ['order-20260918001', 'volatile', 'ends in a record id'],
 
