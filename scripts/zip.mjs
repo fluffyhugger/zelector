@@ -15,6 +15,16 @@ if (!existsSync(manifestPath)) {
 }
 
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+
+// The store names a release by the manifest, npm by package.json. They drifted
+// apart once (0.2.0 was under review while package.json still said 0.1.0) and
+// nothing said so until someone read both files.
+const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
+if (pkg.version !== manifest.version) {
+  console.error(`version mismatch: package.json ${pkg.version}, manifest ${manifest.version}`);
+  process.exit(1);
+}
+
 const out = path.resolve('release', `zelector-${manifest.version}.zip`);
 
 mkdirSync('release', { recursive: true });
