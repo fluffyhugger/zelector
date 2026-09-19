@@ -1,8 +1,8 @@
 *** Variables ***
 # no stable attribute found — consider asking for a data-testid
-${SPAN_TARGET}          css:span
+${ราคารวมทั้งหมด}         css:span
 
 *** Keywords ***
-Span Target Should Contain
-    Wait Until Element Is Visible    ${SPAN_TARGET}    timeout=10s
-    Element Should Contain    ${SPAN_TARGET}    ${EXPECTED}
+ราคารวมทั้งหมด Should Contain
+    Wait Until Element Is Visible    ${ราคารวมทั้งหมด}    timeout=10s
+    Element Should Contain    ${ราคารวมทั้งหมด}    ${EXPECTED}

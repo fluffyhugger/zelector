@@ -386,7 +386,10 @@ export function keywordName(action: RobotAction, varName: string): string {
 
 /** Pad the variable column to 24 chars, the usual Robot alignment. */
 function pad(varName: string): string {
-  const width = Math.max(4, 24 - varName.length - 3);
+  // Combining marks sit on top of the letter before them and take no column of
+  // their own, so ${ราคารวมทั้งหมด} is narrower than its length suggests.
+  const printed = varName.replace(/\p{M}/gu, '').length;
+  const width = Math.max(4, 24 - printed - 3);
   return ' '.repeat(width);
 }
 
@@ -407,7 +410,14 @@ export function variableName(result: PickResult): string {
 
   const cleaned = (source || result.tagName)
     .normalize('NFKD')
-    .replace(/[^\w\s-]/g, '')     // drop punctuation and non-Latin marks
+    // Fold Latin diacritics only. Stripping every combining mark would take
+    // the vowels and tones out of Thai with them — ยืนยัน would come out ยนยน — and
+    // those marks are letters here, not decoration.
+    .replace(/[\u0300-\u036f]/g, '')
+    // Keep letters and digits of any script, drop punctuation. The old rule
+    // was `[^\w\s-]`, which deleted every non-Latin character on the page:
+    // a button reading ยืนยันการสั่งซื้อ was named ${BUTTON_TARGET}.
+    .replace(/[^\p{L}\p{N}\p{M}\s_-]/gu, '')
     .replace(/[\s-]+/g, '_')
     .replace(/^_+|_+$/g, '')
     .toUpperCase();
