@@ -460,11 +460,21 @@ function targetLabel(step: RecordedStep): string {
     const answer = step.dialog.accepted ? (step.dialog.text ?? 'accepted') : 'dismissed';
     return `${step.dialog.kind}: ${step.dialog.message.slice(0, 30)} → ${answer}`;
   }
-  const { attributes, tagName } = step.target;
+
+  const base = short(step.target);
+  // A drag names where it ended; a key press names the key. Neither is a value
+  // typed into the thing, which is what the arrow means everywhere else.
+  if (step.kind === 'drag') return `${base} ⇢ ${step.dropTarget ? short(step.dropTarget) : '?'}`;
+  if (step.kind === 'key') return `${base} · ${step.value ?? ''}`;
+  return step.value ? `${base} ← ${step.value.slice(0, 24)}` : base;
+}
+
+/** Tag plus whichever attribute a reader would recognise it by. */
+function short(target: RecordedStep['target']): string {
+  const { attributes, tagName } = target;
   const ident =
     attributes['data-testid'] ?? attributes['data-cy'] ?? attributes['id'] ?? attributes['name'];
-  const base = ident ? `${tagName}[${ident}]` : `<${tagName}>`;
-  return step.value ? `${base} ← ${step.value.slice(0, 24)}` : base;
+  return ident ? `${tagName}[${ident}]` : `<${tagName}>`;
 }
 
 const STYLE = `
