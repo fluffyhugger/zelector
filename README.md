@@ -162,6 +162,9 @@ Five passes, each for a kind of mistake the others let through:
   count as. `shrink-0` is a Tailwind utility, `css-1nmdiq5-menu` is a hash
   wearing a label, and `material-price` is a name that merely starts like one
   of Angular Material's counters.
+- **navigation** — which navigations a click explains. A link says where it was
+  going, and on a slow site that outlives the two-and-a-half-second grace the
+  recorder used to judge it by.
 - **exports** — every target parsed in its own language: Python through `ast`,
   TypeScript and JavaScript through esbuild, CSS through its parser, Java
   through `javac`. The cases carry quotes, backslashes and Thai text, because

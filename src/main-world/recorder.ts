@@ -24,6 +24,7 @@ import type {
 import { deepElementFromPoint, describe } from './picker';
 import { onDialog } from './hooks';
 import { isNotPageContent } from './ignore';
+import { linkLedTo } from '@/core/navigation';
 import { emptyChange, timeoutFor, watchPageChange, type PageChange, type Watch } from './observer';
 
 /** How long a typing burst can pause before it is flushed as its own step. */
@@ -189,10 +190,15 @@ export class Recorder {
     // at all — the replay stays where it was and every step after it looks for
     // things that are not there. That is a suite that opens the wrong page.
     //
-    // Nothing distinguishes them except time: a navigation a click caused
-    // follows it within a second or two, and one a person chose does not.
+    // Time tells them apart when the site is quick: a navigation a click caused
+    // follows it within a second or two, and one a person chose does not. When
+    // the site is slow it tells them apart wrongly, so ask the link as well —
+    // it says where it was going, and that does not expire.
     const last = this.steps[this.steps.length - 1]!;
-    const followedAnAction = Date.now() - last.at < NAVIGATION_GRACE;
+    const followedAnAction =
+      Date.now() - last.at < NAVIGATION_GRACE ||
+      (last.kind === 'click' &&
+        linkLedTo({ href: last.target.attributes['href'], from: last.target.url }, location.href));
 
     if (!followedAnAction && last.target.url !== location.href) {
       this.steps.push({
