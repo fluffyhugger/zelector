@@ -211,6 +211,19 @@ def main() -> int:
         flag = "  ⚠ spelled " + " / ".join(sorted(names)) if len(names) > 1 else ""
         print(f"ok    {sorted(names)[0]}{flag}")
 
+    # The generator carries a copy of the library's keyword names so it never
+    # names one of its own the same. A copy is a thing that goes stale.
+    committed = re.findall(r"^  '(.+)',$",
+                           (ROOT / "src" / "core" / "library-keywords.ts").read_text(),
+                           re.M)
+    library_names = {k.name for k in LibraryDocumentation(LIBRARIES[0]).keywords}
+    drifted = library_names.symmetric_difference(committed)
+    if drifted:
+        problems.append(
+            f"src/core/library-keywords.ts is out of date: "
+            f"{', '.join(sorted(drifted)[:5])}"
+            f"{' and more' if len(drifted) > 5 else ''}")
+
     missing = [name for name in EXPECTED if normalise(name) not in emitted]
     for name in missing:
         problems.append(f"{name} — the fixtures cover this, and nothing emits it")

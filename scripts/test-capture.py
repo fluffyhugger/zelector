@@ -72,6 +72,11 @@ class Case:
         self.name, self.page, self.run, self.expect = name, page, run, expect
 
 
+def css_behind(locator: str) -> str:
+    """What the CSS parser finally sees: Robot unescapes once, JavaScript again."""
+    return locator.replace("\\\\", "\\").replace("\\\\", "\\")
+
+
 def steps(driver):
     return driver.execute_script("return window.__zelector.steps()")
 
@@ -362,6 +367,13 @@ def combobox_typed(driver):
     time.sleep(1.2)
 
 
+def shadow_escape(driver):
+    # The button is inside a closed shadow root: only a real click reaches it.
+    host = driver.find_element(By.CSS_SELECTOR, "div[title]")
+    ActionChains(driver).move_to_element(host).click().perform()
+    time.sleep(1.2)
+
+
 def container(driver):
     form = driver.find_element(By.ID, "userForm")
     ActionChains(driver).move_to_element_with_offset(form, 5, 5).click().perform()
@@ -619,6 +631,20 @@ CASES = [
             (len(s) == 1, f"expected one step, got {len(s)}: {[x['keyword'] for x in s]}"),
             (s and s[0]["keyword"] == "Input Text", f"keyword was {s[0]['keyword'] if s else None}"),
             (s and s[0]["locator"] == "id:typed", f"step targeted {s[0]['locator'] if s else None}"),
+        ],
+    ),
+    Case(
+        "a backslash survives Robot, JavaScript and the CSS parser",
+        "shadow-escape.html", shadow_escape,
+        lambda s: [
+            (len(s) == 1, f"expected one step, got {len(s)}: {[x['locator'] for x in s]}"),
+            (s and s[0]["locator"].endswith(".shadowRoot.querySelector('#inner')"),
+             f"the shadow chain came out as {s[0]['locator'] if s else None}"),
+            # Eight backslashes in the file for the one the attribute has: Robot
+            # unescapes to four, JavaScript to two, and the CSS parser reads
+            # those two as the backslash itself. Same ladder for each quote.
+            (s and 'title="Press \\\\ to \\"toggle\\""' in css_behind(s[0]["locator"]),
+             f"what the CSS parser would see: {css_behind(s[0]['locator']) if s else None}"),
         ],
     ),
     Case(

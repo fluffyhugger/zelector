@@ -1,0 +1,24 @@
+<!doctype html><meta charset="utf-8"><title>shadow escape</title><link rel=stylesheet href=_base.css>
+<!-- The harness first, the way the extension loads: the attachShadow hook has
+     to be in place before the page calls attachShadow, or a closed root is
+     invisible to everything afterwards. Every other page here loads it last
+     because none of them has a shadow root to miss. -->
+<script src="harness.js"></script>
+
+<!-- A backslash in the host's attribute, three readers away from the element it
+     points at: Robot unescapes the cell, JavaScript unescapes the string, and
+     the CSS parser unescapes the selector. Recorded on shoelace.style, whose
+     buttons carry title="Press \ to toggle" — two of the three were escaped and
+     document.querySelector came back null. -->
+<!-- No id on the host on purpose: with one, the host selector is `#widget` and
+     the escaping never has to work. -->
+<div title='Press \ to "toggle"' style="padding:10px;border:1px solid #999;width:220px"></div>
+<script>
+  const host = document.querySelector('div[title]');
+  const root = host.attachShadow({ mode: 'closed' });
+  const button = document.createElement('button');
+  button.id = 'inner';
+  button.textContent = 'Go';
+  button.style.cssText = 'padding:10px;width:100%';
+  root.appendChild(button);
+</script>

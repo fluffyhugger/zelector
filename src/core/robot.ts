@@ -20,6 +20,7 @@
  *     the worst way for a test to fail.
  */
 import type { PickResult } from './types';
+import { LIBRARY_KEYWORDS } from './library-keywords';
 import { carriesGeneratedToken, classify, isGeneratedId, isUseless, isVolatile } from './volatility';
 
 export interface RobotLocator {
@@ -53,11 +54,27 @@ export function toRobotLocator(result: PickResult): RobotLocator {
   const base = baseLocator(result);
   return {
     ...base,
-    frames,
+    // The value goes into a file Robot will read, and Robot eats a backslash of
+    // its own before anything downstream sees one. A shoelace.style button
+    // carrying `title="Press \\ to toggle"` needs the backslash to survive
+    // three readers in a row — Robot, then JavaScript, then the CSS parser —
+    // and it was surviving only two.
+    value: robotSafe(base.value),
+    frames: frames.map(robotSafe),
     note: guessed
       ? `${base.note} · ⚠ the frame selector is a guess — a cross-origin parent hides the real one`
       : base.note,
   };
+}
+
+/**
+ * A locator on its way into a Robot file.
+ *
+ * `\\` in a cell is an escaped backslash and `${` starts a variable, so both
+ * have to be written as themselves. Nothing else in a locator is Robot syntax.
+ */
+function robotSafe(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/\$\{/g, '\\${');
 }
 
 /** `#checkout` addresses a frame as `id:checkout`; anything else goes through css:. */
@@ -67,6 +84,24 @@ function frameLocator(hostSelector: string): string {
 }
 
 /** The locator within its own frame — frames are handled by the caller. */
+/**
+ * A selector on its way into a JavaScript string.
+ *
+ * The backslash has to go first or the quote escape escapes itself. Recorded on
+ * shoelace.style, where a button carries `title="Press \\ to toggle"`: the
+ * backslash reached the expression unescaped, JavaScript read `\\ ` as an
+ * escaped space, and `document.querySelector` looked for a title that nothing
+ * had. The suite failed with "Cannot read properties of null" — a message about
+ * the chain, for a problem in the first link of it.
+ */
+function jsLiteral(selector: string): string {
+  return selector
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r');
+}
+
 function baseLocator(result: PickResult): Omit<RobotLocator, 'frames'> {
   const a = result.attributes;
   const tag = result.tagName;
@@ -77,12 +112,12 @@ function baseLocator(result: PickResult): Omit<RobotLocator, 'frames'> {
   const shadowHops = result.hops.filter((h) => h.type === 'shadow');
   if (shadowHops.length) {
     const chain = shadowHops
-      .map((h) => `querySelector('${h.hostSelector.replace(/'/g, "\\'")}').shadowRoot`)
+      .map((h) => `querySelector('${jsLiteral(h.hostSelector)}').shadowRoot`)
       .join('.');
     const leaf = cssFor(result);
     return {
       strategy: 'dom',
-      value: `dom:document.${chain}.querySelector('${leaf.replace(/'/g, "\\'")}')`,
+      value: `dom:document.${chain}.querySelector('${jsLiteral(leaf)}')`,
       note: 'SeleniumLibrary has no shadow-DOM strategy — a dom: expression is the only way in',
       fragile: false,
     };
@@ -403,12 +438,27 @@ function renderRadioKeyword(result: PickResult, action: RobotAction): string {
   ].join('\n');
 }
 
-/** "Click Export CSV" for actions, "Export CSV Should Be Enabled" for assertions. */
+/**
+ * "Click Export CSV" for actions, "Export CSV Should Be Enabled" for assertions.
+ *
+ * Never a name the library already has. Robot resolves a suite's own keywords
+ * before a library's, so `Click Button` calling `Click Button` calls itself —
+ * which is what an element with nothing to be named after but its tag produces.
+ * Recorded on shoelace.style, where the button lives in a shadow root and
+ * carries no id, no label and no text of its own.
+ *
+ * "The" rather than a number: no keyword in the library starts with it, and
+ * "Click Button 2" in a suite with no "Click Button 1" is a puzzle for whoever
+ * reads it next.
+ */
 export function keywordName(action: RobotAction, varName: string): string {
   const title = titleCase(varName);
-  if (action.suffix) return `${title} ${action.suffix}`;
-  return `${action.verb ?? 'Use'} ${title}`;
+  const name = action.suffix ? `${title} ${action.suffix}` : `${action.verb ?? 'Use'} ${title}`;
+  return TAKEN_BY_LIBRARY.has(normalise(name)) ? `The ${name}` : name;
 }
+
+const normalise = (name: string): string => name.toLowerCase().replace(/[\s_]/g, '');
+const TAKEN_BY_LIBRARY = new Set(LIBRARY_KEYWORDS.map(normalise));
 
 /** Pad the variable column to 24 chars, the usual Robot alignment. */
 function pad(varName: string): string {

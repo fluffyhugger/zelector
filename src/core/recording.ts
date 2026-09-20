@@ -13,6 +13,7 @@
  * Names that collide while pointing at different things get a numeric suffix
  * rather than silently overwriting each other.
  */
+import { LIBRARY_KEYWORDS } from './library-keywords';
 import type { PickResult } from './types';
 import {
   frameVarNames,
@@ -255,7 +256,11 @@ interface KeywordDef {
  */
 class Keywords {
   private byContent = new Map<string, string>();
-  private taken = new Set<string>();
+  // Seeded with the library's own names. Robot resolves a suite's keywords
+  // before a library's, so `Click Button` defined here and calling
+  // `Click Button` calls itself — which is what a button inside a shadow root
+  // with nothing to be named after but its tag produced.
+  private taken = new Set<string>(LIBRARY_KEYWORDS.map(normalizeVar));
   readonly defs: KeywordDef[] = [];
 
   add(name: string, args: string[], body: string[]): string {

@@ -173,7 +173,7 @@ Five passes, each for a kind of mistake the others let through:
   it uses.
 - **snapshots** — the generated suites, committed. Output that is valid and
   quietly worse shows up as a diff rather than as a surprise.
-- **capture** — twenty-three recordings driven through WebDriver. Every one is a
+- **capture** — twenty-six recordings driven through WebDriver. Every one is a
   bug that happened: a pause mid-typing, a checkbox under its label, a menu
   that opens on mousedown, another extension's markup, a list portalled to
   `<body>` above an id that is regenerated on every render, a calendar credited
