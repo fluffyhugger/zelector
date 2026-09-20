@@ -1,6 +1,10 @@
 # Chrome Web Store listing
 
-Copy-paste material for the developer console. Kept in the repo because every
+**The name and the short description are not typed into the console.** They are
+`name` and `description` in `manifest.json`, and the store shows them as "from
+the package" — editing the dashboard does nothing, and a rejected wording stays
+on the listing until a new ZIP carries a new one. The rest of this file is
+copy-paste material for the developer console. Kept in the repo because every
 update re-asks for most of it.
 
 **This describes 0.3.0.** Version 0.2.0 is the one under review, and its
