@@ -59,12 +59,16 @@ export function toSeleniumLocator(result: PickResult): SeleniumLocator {
     }
   }
 
-  // Selenium is the one target with a first-class link-text strategy.
-  if (result.tagName === 'a' && result.text && result.text.length <= 60) {
-    const textCandidate = result.candidates.find((c) => c.kind === 'text');
-    if (textCandidate && (!best || textCandidate.score > best.score)) {
-      return { strategy: 'LINK_TEXT', value: result.text, note: '⚠ breaks on copy edits and in other locales' };
-    }
+  // Selenium is the one target with a first-class link-text strategy. It used
+  // to be chosen by comparing scores with a `text` candidate; that candidate
+  // was a Playwright expression and is gone. The question it was standing in
+  // for is the one robot.ts already asks: does one link on the page read this
+  // way, and is what we have otherwise worse than a structural path?
+  if (
+    result.tagName === 'a' && result.text && result.text.length <= 60 &&
+    result.linkTextMatches === 1 && (!best || best.kind === 'path' || best.score < 60)
+  ) {
+    return { strategy: 'LINK_TEXT', value: result.text, note: '⚠ breaks on copy edits and in other locales' };
   }
 
   return {

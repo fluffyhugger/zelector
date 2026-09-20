@@ -33,14 +33,6 @@ export const CASES: Array<[string, PickResult]> = [
     ...base, tagName: 'div', text: 'C:\\path', attributes: { class: 'path\\name' }, hops: [],
     candidates: [c('class', 'css', 'div.path\\\\name', 40)],
   }],
-  ['playwright_engine', {
-    ...base, tagName: 'button', text: 'Sign in', attributes: {}, hops: [],
-    candidates: [c('role', 'playwright', "getByRole('button', { name: 'Sign in' })", 90), c('path', 'css', 'main > button', 20)],
-  }],
-  ['playwright_engine_quote', {
-    ...base, tagName: 'button', text: "Don't", attributes: {}, hops: [],
-    candidates: [c('role', 'playwright', "getByRole('button', { name: 'Don\\'t' })", 90), c('path', 'css', 'main > button', 20)],
-  }],
   ['link_text_shared', {
     ...base, tagName: 'a', text: 'View profile', attributes: { href: '/users/3' }, hops: [],
     linkTextMatches: 3,

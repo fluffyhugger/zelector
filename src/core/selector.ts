@@ -4,6 +4,13 @@
  * The premise of Zelector: never hand back a single selector. Generate every
  * reasonable way to reach the element, score each on how likely it is to survive
  * a redeploy, and let the user pick with the trade-off visible.
+ *
+ * Every candidate here is a CSS selector, because every target left is one that
+ * takes CSS: Robot Framework through SeleniumLibrary, Selenium itself, and the
+ * plain CSS and XPath copies. The picker used to offer `getByRole(...)`,
+ * `getByLabel(...)` and `getByText(...)` beside them — Playwright expressions,
+ * from when the tool tried to serve Playwright too. Nothing could use them, so
+ * they were three rows of a list that a person has to read before choosing.
  */
 import type { SelectorCandidate, SelectorKind } from './types';
 import { carriesGeneratedToken, classify, isGeneratedId, isUseless } from './volatility';
@@ -11,7 +18,6 @@ import {
   ancestors, countMatches, esc, isUnique, normalizeText,
   nthOfType, queryInScope, quote,
 } from './dom';
-import { accessibleName, roleOf } from './aria';
 
 /** Checked in order — the first one present wins, so keep the strongest first. */
 const TEST_ATTRIBUTES = [
@@ -24,8 +30,7 @@ const SEMANTIC_ATTRIBUTES = ['name', 'type', 'href', 'placeholder', 'title', 'al
 
 /** Base score by kind, before penalties. */
 const BASE_SCORE: Record<SelectorKind, number> = {
-  testid: 98, label: 92, role: 90, id: 85, name: 82,
-  aria: 80, text: 68, attr: 60, class: 45, path: 20,
+  testid: 98, id: 85, name: 82, aria: 80, attr: 60, class: 45, path: 20,
 };
 
 export function generateCandidates(el: Element): SelectorCandidate[] {
@@ -62,16 +67,6 @@ export function generateCandidates(el: Element): SelectorCandidate[] {
           : []),
       ],
     });
-    // Playwright reads whichever attribute testIdAttribute names — data-testid
-    // out of the box. Offer getByTestId() only when it will work unconfigured,
-    // and say so when it needs a line in playwright.config.
-    push({
-      kind: 'testid', engine: 'playwright', value: `getByTestId(${quoteJs(value)})`,
-      penalty: attr === 'data-testid' ? 1 : 8,
-      notes: attr === 'data-testid'
-        ? ['Playwright reads data-testid by default']
-        : [`needs testIdAttribute: '${attr}' in playwright.config`],
-    });
     break; // one test hook is enough
   }
 
@@ -98,31 +93,8 @@ export function generateCandidates(el: Element): SelectorCandidate[] {
     });
   }
 
-  // ── 3. Accessible role + name → the selector style Playwright recommends ───
-  const role = roleOf(el);
-  const name = accessibleName(el);
-  if (role && name && name.length <= 60) {
-    const dupes = countRoleMatches(el, role, name);
-    push({
-      kind: 'role', engine: 'playwright',
-      value: `getByRole(${quoteJs(role)}, { name: ${quoteJs(name)}${/[.*+?^${}()|[\]\\]/.test(name) ? '' : ''} })`,
-      penalty: dupes > 1 ? 22 : 0,
-      notes: [
-        'matches what a screen reader sees — survives restyling',
-        ...(dupes > 1 ? [`⚠ ${dupes} elements share this role+name`] : []),
-      ],
-    });
-  }
-
-  // ── 4. Form controls: label, then name= ────────────────────────────────────
+  // ── 3. Form controls: name= ────────────────────────────────────────────────
   if (/^(input|select|textarea)$/.test(tag)) {
-    const labelText = accessibleName(el);
-    if (labelText) {
-      push({
-        kind: 'label', engine: 'playwright', value: `getByLabel(${quoteJs(labelText)})`,
-        notes: ['bound to the visible <label> — breaks only if the copy changes'],
-      });
-    }
     const nameAttr = el.getAttribute('name');
     if (nameAttr && !isUseless(nameAttr)) {
       const sel = `${tag}[name=${quote(nameAttr)}]`;
@@ -134,7 +106,7 @@ export function generateCandidates(el: Element): SelectorCandidate[] {
     }
   }
 
-  // ── 5. aria-label ──────────────────────────────────────────────────────────
+  // ── 4. aria-label ──────────────────────────────────────────────────────────
   const ariaLabel = el.getAttribute('aria-label');
   if (ariaLabel) {
     const sel = `[aria-label=${quote(ariaLabel)}]`;
@@ -145,18 +117,7 @@ export function generateCandidates(el: Element): SelectorCandidate[] {
     });
   }
 
-  // ── 6. Visible text ────────────────────────────────────────────────────────
-  const text = normalizeText(el.textContent);
-  if (text && text.length <= 50 && !/^(html|body|head)$/.test(tag)) {
-    push({
-      kind: 'text', engine: 'playwright',
-      value: `getByText(${quoteJs(text)}, { exact: true })`,
-      penalty: text.length > 30 ? 10 : 0,
-      notes: ['⚠ breaks on copy edits and in other locales'],
-    });
-  }
-
-  // ── 7. Other semantic attributes ───────────────────────────────────────────
+  // ── 5. Other semantic attributes ───────────────────────────────────────────
   for (const attr of SEMANTIC_ATTRIBUTES) {
     const value = el.getAttribute(attr);
     if (!value || value.length > 100 || isUseless(value)) continue;
@@ -169,23 +130,14 @@ export function generateCandidates(el: Element): SelectorCandidate[] {
     break;
   }
 
-  // ── 8. Class combination ───────────────────────────────────────────────────
+  // ── 6. Class combination ───────────────────────────────────────────────────
   const classCandidate = buildClassSelector(el);
   if (classCandidate) out.push(classCandidate);
 
-  // ── 9. Structural path — always available, always last ─────────────────────
+  // ── 7. Structural path — always available, always last ─────────────────────
   out.push(buildPathSelector(el));
 
   return dedupe(out).sort((a, b) => b.score - a.score);
-}
-
-/** How many elements share this role+name — cheap approximation of a11y-tree lookup. */
-function countRoleMatches(el: Element, role: string, name: string): number {
-  let n = 0;
-  for (const candidate of queryInScope(el, '*')) {
-    if (roleOf(candidate) === role && accessibleName(candidate) === name) n++;
-  }
-  return n;
 }
 
 function buildClassSelector(el: Element): SelectorCandidate | null {

@@ -200,9 +200,10 @@ A test attribute is judged on its value as well: `data-test="product-01M2ZB0KTWN
 is a purpose-built hook carrying a row id, which is durable until someone runs
 the suite against a different database.
 
-`src/core/selector.ts` then emits candidates in order of preference: test attributes,
-`id`, `getByRole`, `getByLabel` / `name=`, `aria-label`, text, other semantic
-attributes, class combination, structural path.
+`src/core/selector.ts` then emits candidates in order of preference: test
+attributes, `id`, `name=`, `aria-label`, another semantic attribute, a class
+combination, and a structural path. Every one of them is a CSS selector,
+because every target is one that takes CSS.
 
 ## Roadmap
 

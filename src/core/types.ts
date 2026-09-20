@@ -4,15 +4,12 @@ export type SelectorKind =
   | 'id'       // #foo
   | 'name'     // [name="email"] on form controls
   | 'aria'     // [aria-label="..."]
-  | 'role'     // getByRole(role, { name })
-  | 'label'    // getByLabel('...')  — input associated with a <label>
-  | 'text'     // :has-text('...')
   | 'attr'     // some other stable attribute (href, type, placeholder…)
   | 'class'    // a class combination unique on the page
   | 'path';    // structural fallback — nth-child chain
 
 /** Target syntax the candidate is written in. */
-export type Engine = 'css' | 'xpath' | 'playwright';
+export type Engine = 'css' | 'xpath';
 
 export interface SelectorCandidate {
   kind: SelectorKind;
