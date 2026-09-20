@@ -7,20 +7,25 @@ import type { PickResult, SelectorCandidate } from './types';
 import { toRobotCode, toRobotLocator } from './robot';
 import { javaMethod, toSeleniumLocator } from './selenium';
 
+/**
+ * What a single pick can be copied as.
+ *
+ * Robot Framework is what a recording becomes, Selenium is the library it
+ * drives, and CSS, XPath and JSON carry no framework with them at all. The
+ * tools that were here before — Playwright, Puppeteer, Cypress — ship
+ * recorders of their own, and a copy button is not a reason to claim an
+ * audience we are not doing the work for.
+ */
 export type ExportTarget =
   | 'robot' | 'robot-locator'
-  | 'playwright-ts' | 'playwright-py' | 'selenium-py' | 'selenium-java'
-  | 'puppeteer' | 'cypress' | 'css' | 'xpath-ish' | 'json';
+  | 'selenium-py' | 'selenium-java'
+  | 'css' | 'xpath-ish' | 'json';
 
 export const TARGET_LABELS: Record<ExportTarget, string> = {
   robot: 'Robot Framework (SeleniumLibrary)',
   'robot-locator': 'Robot locator only',
-  'playwright-ts': 'Playwright (TS)',
-  'playwright-py': 'Playwright (Python)',
   'selenium-py': 'Selenium (Python)',
   'selenium-java': 'Selenium (Java)',
-  puppeteer: 'Puppeteer',
-  cypress: 'Cypress',
   css: 'CSS selector',
   'xpath-ish': 'XPath',
   json: 'JSON',
@@ -31,7 +36,6 @@ const best = (list: SelectorCandidate[], engines: SelectorCandidate['engine'][])
 
 /** `robotKeyword` selects one of the alternatives from robotActionsFor(); ignored by every other target. */
 export function toCode(result: PickResult, target: ExportTarget, robotKeyword?: string): string {
-  const anyBest = best(result.candidates, ['css', 'playwright']);
   const cssBest = best(result.candidates, ['css']);
   const shadowNote = result.hops.length
     ? `// ⚠ ${result.hops.length} shadow/frame boundary between this and the document root\n`
@@ -43,22 +47,6 @@ export function toCode(result: PickResult, target: ExportTarget, robotKeyword?: 
 
     case 'robot-locator':
       return toRobotLocator(result).value;
-
-    case 'playwright-ts': {
-      if (!anyBest) return '// no selector found';
-      const expr = anyBest.engine === 'playwright'
-        ? `page.${anyBest.value}`
-        : `page.locator(${str(anyBest.value)})`;
-      return `${shadowNote}const target = ${expr};\nawait target.click();`;
-    }
-
-    case 'playwright-py': {
-      if (!anyBest) return '# no selector found';
-      const expr = anyBest.engine === 'playwright'
-        ? `page.${toSnake(anyBest.value)}`
-        : `page.locator(${str(anyBest.value)})`;
-      return `${shadowNote.replace('//', '#')}target = ${expr}\ntarget.click()`;
-    }
 
     case 'selenium-py': {
       const by = toSeleniumLocator(result);
@@ -79,14 +67,6 @@ export function toCode(result: PickResult, target: ExportTarget, robotKeyword?: 
         'target.click();',
       ].filter(Boolean).join('\n');
     }
-
-    case 'puppeteer':
-      if (!cssBest) return '// no CSS-expressible selector';
-      return `${shadowNote}await page.waitForSelector(${str(cssBest.value)});\nawait page.click(${str(cssBest.value)});`;
-
-    case 'cypress':
-      if (!cssBest) return '// no CSS-expressible selector';
-      return `${shadowNote}cy.get(${str(cssBest.value)}).click();`;
 
     case 'css':
       return cssBest?.value ?? '/* no CSS-expressible selector */';
@@ -118,12 +98,3 @@ function str(value: string, q: '"' | "'" = "'"): string {
   return `${q}${escaped}${q}`;
 }
 
-/** getByRole('x', { name: 'y' })  →  get_by_role('x', name='y') */
-function toSnake(pwExpr: string): string {
-  return pwExpr
-    .replace(/^([a-z]+)([A-Z])/, (_, a: string, b: string) => `${a}_${b.toLowerCase()}`)
-    .replace(/([a-z])([A-Z])/g, (_, a: string, b: string) => `${a}_${b.toLowerCase()}`)
-    .replace(/\{\s*([a-z]+):\s*/g, '$1=')
-    .replace(/\s*\}/g, '')
-    .replace(/,\s*exact=true/, ', exact=True');
-}

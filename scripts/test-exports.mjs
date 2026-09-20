@@ -7,9 +7,8 @@
  * locator carrying the quote character the template uses — a class of bug that
  * only a parser notices.
  *
- * Python through ast, TypeScript and JavaScript through esbuild, Java through
- * javac against stub classes, CSS through esbuild's CSS parser, JSON through
- * JSON.parse.
+ * Python through ast, Java through javac against stub classes, CSS through
+ * esbuild's CSS parser, JSON through JSON.parse.
  */
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
@@ -87,12 +86,8 @@ function hasJava() {
 const JAVA = hasJava();
 
 const VALIDATORS = {
-  'playwright-ts': esbuildCheck('ts'),
-  'playwright-py': python,
   'selenium-py': python,
   'selenium-java': JAVA ? java : null,
-  puppeteer: esbuildCheck('ts'),
-  cypress: esbuildCheck('ts'),
   css: esbuildCheck('css'),
   json: (code) => JSON.parse(code),
 };

@@ -1,8 +1,9 @@
 # Zelector
 
 Record a flow, or pick any element — closed shadow roots included — and get
-selectors scored on how likely they are to survive the next deploy. Exports to
-Robot Framework, Playwright, Selenium, Puppeteer, Cypress, CSS and XPath.
+selectors scored on how likely they are to survive the next deploy. A recording
+becomes a Robot Framework suite; a single pick copies as Robot Framework,
+Selenium (Python or Java), CSS, XPath or JSON.
 
 Free, MIT, no account, no servers — [nothing leaves the browser](PRIVACY.md).
 
@@ -167,9 +168,9 @@ Five passes, each for a kind of mistake the others let through:
   going, and on a slow site that outlives the two-and-a-half-second grace the
   recorder used to judge it by.
 - **exports** — every target parsed in its own language: Python through `ast`,
-  TypeScript and JavaScript through esbuild, CSS through its parser, Java
-  through `javac`. The cases carry quotes, backslashes and Thai text, because
-  a template breaks on the quote character it uses.
+  Java through `javac`, CSS through esbuild's parser. The cases carry quotes,
+  backslashes and Thai text, because a template breaks on the quote character
+  it uses.
 - **snapshots** — the generated suites, committed. Output that is valid and
   quietly worse shows up as a diff rather than as a surprise.
 - **capture** — twenty-three recordings driven through WebDriver. Every one is a

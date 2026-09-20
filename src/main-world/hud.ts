@@ -15,7 +15,7 @@ import { copy } from './deliver';
 const HUD_ID = 'zelector-hud-host';
 const TARGETS: ExportTarget[] = [
   'robot', 'robot-locator',
-  'playwright-ts', 'playwright-py', 'selenium-py', 'selenium-java', 'puppeteer', 'cypress',
+  'selenium-py', 'selenium-java',
   'css', 'xpath-ish', 'json',
 ];
 

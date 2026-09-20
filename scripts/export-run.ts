@@ -2,8 +2,7 @@ import { toCode, type ExportTarget } from '@/core/export';
 import { CASES } from './export-cases';
 
 const TARGETS: ExportTarget[] = [
-  'playwright-ts', 'playwright-py', 'selenium-py', 'selenium-java',
-  'puppeteer', 'cypress', 'css', 'json',
+  'selenium-py', 'selenium-java', 'css', 'json',
 ];
 
 const out: Record<string, Record<string, string>> = {};

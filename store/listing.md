@@ -132,8 +132,8 @@ THINGS THAT USUALLY GET IN THE WAY
 COPYING A SINGLE SELECTOR
 
 When you are inspecting rather than recording, the picker copies the locator on
-its own — as a CSS or XPath expression, or as a line of code for whichever tool
-you work in. Recording a flow produces a Robot Framework suite.
+its own: as a CSS or XPath expression, as JSON, or as the line of Selenium that
+finds it in Python or Java. Recording a flow produces a Robot Framework suite.
 
 PRIVACY
 
