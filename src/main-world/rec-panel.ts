@@ -15,6 +15,7 @@ import {
   WAIT_ORDER,
   actionForStep,
   defaultDoc,
+  dialogKeyword,
   toRobotSuite,
   type PanelPlacement,
   type RecordedStep,
@@ -448,12 +449,6 @@ function timeoutInput(step: RecordedStep, callbacks: RecPanelCallbacks): HTMLEle
 }
 
 /** Handle Alert covers alert and confirm; a typed-into prompt needs the other. */
-function dialogKeyword(step: RecordedStep): string {
-  return step.dialog?.kind === 'prompt' && step.dialog.accepted
-    ? 'Input Text Into Alert'
-    : 'Handle Alert';
-}
-
 function targetLabel(step: RecordedStep): string {
   if (step.kind === 'navigate') return step.value ?? '';
   if (step.dialog) {

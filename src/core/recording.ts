@@ -332,11 +332,19 @@ interface RenderedStep {
 }
 
 function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedStep {
-  const wait = renderWait(step.wait, syms);
-
   // A dialog is not an element, so it has no locator, no keyword definition and
   // nothing to wait for — it is already on screen and blocking when the step
-  // after it runs. It goes straight into the test case.
+  // after it runs. It goes straight into the test case, before anything claims
+  // a variable for a wait that is about to be thrown away.
+  //
+  // This is where the dialog steps used to be lost: renderDialog existed, the
+  // panel showed Handle Alert, the capture tests asserted Handle Alert, and the
+  // file people actually downloaded clicked `css:html` instead — the browser's
+  // dialog is not in the DOM, so that click went nowhere.
+  if (step.kind === 'dialog') return { pre: [], call: renderDialog(step) };
+
+  const wait = renderWait(step.wait, syms);
+
   // Mouse Over is a move, not an action on the element; giving it a keyword of
   // its own would read as though something happened to the thing hovered.
   if (step.kind === 'hover') {
@@ -441,11 +449,23 @@ function renderDialog(step: RecordedStep): string {
   const dialog = step.dialog;
   if (!dialog) return '    Handle Alert    action=ACCEPT';
 
-  const action = dialog.accepted ? 'ACCEPT' : 'DISMISS';
-  if (dialog.kind === 'prompt' && dialog.accepted) {
+  if (dialogKeyword(step) === 'Input Text Into Alert') {
     return `    Input Text Into Alert    ${safeValue(dialog.text ?? '')}    action=ACCEPT`;
   }
-  return `    Handle Alert    action=${action}`;
+  return `    Handle Alert    action=${dialog.accepted ? 'ACCEPT' : 'DISMISS'}`;
+}
+
+/**
+ * Which keyword answers this dialog.
+ *
+ * Exported because the panel and the capture harness both used to answer it
+ * themselves, which is how three copies of the mapping came to agree with each
+ * other while the generator quietly did something else.
+ */
+export function dialogKeyword(step: RecordedStep): string {
+  return step.dialog?.kind === 'prompt' && step.dialog.accepted
+    ? 'Input Text Into Alert'
+    : 'Handle Alert';
 }
 
 /**
@@ -533,8 +553,13 @@ export function toRobotSuite(rec: Recording, options: SuiteOptions = {}): string
   // Otherwise a label someone brushed past takes ${BUG_TYPE} simply by being
   // clicked earlier, and the button the test actually drives ends up as
   // ${BUG_TYPE_2}. Order of appearance is a worse claim than durability.
+  //
+  // A dialog step is skipped along with a navigation: neither renders a
+  // locator, and claiming names for them leaves ${HTML} and the toast the page
+  // happened to be showing sitting in the Variables table with nothing
+  // referring to them.
   const targets = rec.steps.flatMap((step) =>
-    step.kind === 'navigate'
+    step.kind === 'navigate' || step.kind === 'dialog'
       ? []
       : [
           step.target,

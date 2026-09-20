@@ -4,10 +4,6 @@ Library           SeleniumLibrary
 *** Variables ***
 # fastest for the browser to resolve
 ${SAVE}                 id:save
-# no stable attribute found — consider asking for a data-testid
-${HTML}                 css:html
-# fastest for the browser to resolve
-${TOAST}                id:toast
 # fastest for the browser to resolve
 ${DELETE}               id:delete
 # fastest for the browser to resolve
@@ -21,22 +17,17 @@ Confirmations
     Open Browser    ${START_URL}    ${BROWSER}
     Maximize Browser Window
     Click Save
-    Wait Until Element Is Visible    ${TOAST}    timeout=10s
-    Click HTML
+    Handle Alert    action=ACCEPT
     Click Delete
-    Click HTML
+    Handle Alert    action=DISMISS
     Click Rename
-    Click HTML
+    Input Text Into Alert    a\ \ b \${X}    action=ACCEPT
     [Teardown]    Close Browser
 
 *** Keywords ***
 Click Save
     Wait Until Element Is Visible    ${SAVE}    timeout=10s
     Click Button    ${SAVE}
-
-Click HTML
-    Wait Until Element Is Visible    ${HTML}    timeout=10s
-    Click Element    ${HTML}
 
 Click Delete
     Wait Until Element Is Visible    ${DELETE}    timeout=10s

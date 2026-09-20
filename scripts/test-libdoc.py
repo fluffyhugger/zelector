@@ -45,6 +45,8 @@ LIBRARIES = ["SeleniumLibrary", "BuiltIn"]
 # and none of them was the generator. What no test asked was whether the
 # keyword ever came out the other end.
 EXPECTED = [
+    "Handle Alert",
+    "Input Text Into Alert",
     "Press Keys",
     "Drag And Drop",
     "Mouse Over",

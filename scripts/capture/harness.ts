@@ -12,7 +12,7 @@
 import { installHooks } from '@/main-world/hooks';
 import { Recorder } from '@/main-world/recorder';
 import type { RecordedStep } from '@/core/recording';
-import { actionForStep } from '@/core/recording';
+import { actionForStep, dialogKeyword } from '@/core/recording';
 import { toRobotLocator } from '@/core/robot';
 import { generateCandidates } from '@/core/selector';
 import { describe as describeElement } from '@/main-world/picker';
@@ -36,11 +36,7 @@ const keywordOf = (step: RecordedStep): string => {
   if (step.kind === 'key') return 'Press Keys';
   if (step.kind === 'drag') return 'Drag And Drop';
   if (step.kind === 'hover') return 'Mouse Over';
-  if (step.dialog) {
-    return step.dialog.kind === 'prompt' && step.dialog.accepted
-      ? 'Input Text Into Alert'
-      : 'Handle Alert';
-  }
+  if (step.dialog) return dialogKeyword(step);
   return actionForStep(step).keyword;
 };
 
