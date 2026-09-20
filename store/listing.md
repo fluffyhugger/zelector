@@ -34,8 +34,8 @@ searches, not three, and no ampersand-chained list.
 Record a flow or pick any element — shadow DOM included — and get a Robot Framework suite with locators that survive a redeploy.
 ```
 
-(128 characters. Selenium is named because SeleniumLibrary is what Robot drives
-and because Selenium users are half the audience.)
+(128 characters. One product named, once — the rejection was for naming
+six in a row.)
 
 ## Category
 
