@@ -72,6 +72,20 @@ INTERACTION = re.compile(
     r"set focus|simulate|open context)", re.I)
 
 
+# How the generator builds a keyword name: a verb in front, or one of these
+# behind. Anything the library calls something else, a recording never will.
+VERBS = ("Click", "Double Click", "Right Click", "Fill", "Check", "Uncheck",
+         "Choose", "Select", "Unselect", "Clear", "Upload", "Use")
+SUFFIXES = ("Should Be Enabled", "Should Be Disabled", "Text Should Be",
+            "Should Contain", "Value Should Be", "Selection Should Be",
+            "Should Be Selected", "Should Not Be Selected", "Should Be Set To")
+
+
+def could_be_generated(name: str) -> bool:
+    return (any(name == verb or name.startswith(verb + " ") for verb in VERBS)
+            or any(name.endswith(suffix) for suffix in SUFFIXES))
+
+
 def normalise(name: str) -> str:
     """Robot matches keyword names ignoring case, spaces and underscores."""
     return re.sub(r"[ _]", "", name).lower()
@@ -212,17 +226,27 @@ def main() -> int:
         print(f"ok    {sorted(names)[0]}{flag}")
 
     # The generator carries a copy of the library's keyword names so it never
-    # names one of its own the same. A copy is a thing that goes stale.
-    committed = re.findall(r"^  '(.+)',$",
-                           (ROOT / "src" / "core" / "library-keywords.ts").read_text(),
-                           re.M)
+    # names one of its own the same. A copy is a thing that goes stale — and it
+    # goes stale differently on every machine, because the version of
+    # SeleniumLibrary that installs depends on the version of Python that is
+    # there. So only a name the generator could actually produce is a failure:
+    # `Click Button` missing from the list is a keyword that would call itself,
+    # while `Get CSS Property Value` missing from it is a name nothing here
+    # would ever choose.
+    committed = set(re.findall(r"^  '(.+)',$",
+                               (ROOT / "src" / "core" / "library-keywords.ts").read_text(),
+                               re.M))
     library_names = {k.name for k in LibraryDocumentation(LIBRARIES[0]).keywords}
-    drifted = library_names.symmetric_difference(committed)
-    if drifted:
+    unreserved = sorted(n for n in library_names - committed if could_be_generated(n))
+    if unreserved:
         problems.append(
-            f"src/core/library-keywords.ts is out of date: "
-            f"{', '.join(sorted(drifted)[:5])}"
-            f"{' and more' if len(drifted) > 5 else ''}")
+            "src/core/library-keywords.ts does not reserve "
+            f"{', '.join(unreserved)} — a recording could name a keyword that")
+    other_drift = len(library_names.symmetric_difference(committed)) - len(unreserved)
+    if other_drift:
+        print(f"note  {other_drift} keyword name(s) differ between the committed list and "
+              f"this machine's SeleniumLibrary, none of them reachable by the generator's "
+              f"naming.\n")
 
     missing = [name for name in EXPECTED if normalise(name) not in emitted]
     for name in missing:
