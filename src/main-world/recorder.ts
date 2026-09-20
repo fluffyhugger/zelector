@@ -496,7 +496,13 @@ export class Recorder {
     // that had never been opened. So the click is kept, and thrown away later
     // if typing into the same field turns out to follow it.
     if (isTextEntry(el)) {
-      this.push({ kind: 'click', target: describe(el), keyword: 'Click Element' });
+      // A combobox's input is often not clickable in its own right; the control
+      // drawn around it is. The field is still what the typing belongs to, so
+      // the step remembers which field it was aiming at.
+      const clickable = reachable(el);
+      this.push({ kind: 'click', target: describe(clickable), keyword: 'Click Element' });
+      const pushed = this.steps[this.steps.length - 1];
+      this.aiming = pushed ? { id: pushed.id, el } : null;
       return;
     }
 
@@ -510,7 +516,16 @@ export class Recorder {
 
     const kind: StepKind = isToggle(el) ? 'check' : 'click';
     // A click on a checkbox also fires change; the change handler defers to this.
-    this.push({ kind, target: describe(el), ...toggleKeyword(el) });
+    // A toggle keeps its own element either way — Select Checkbox is aimed at the
+    // input, and the label route above has already been taken if there is one.
+    this.push({ kind, target: describe(kind === 'check' ? el : reachable(el)), ...toggleKeyword(el) });
+
+    // A combobox is a control wrapped around a field. Pressing it is aiming as
+    // much as pressing the field is, so if typing lands in that field next, this
+    // click goes the same way an aiming click on a plain input goes.
+    const pushed = this.steps[this.steps.length - 1];
+    const field = kind === 'click' ? onlyTextEntryInside(el) : undefined;
+    this.aiming = pushed && field ? { id: pushed.id, el: field } : this.aiming;
   };
 
   private onInput = (event: Event): void => {
@@ -671,6 +686,15 @@ export class Recorder {
     this.push({ kind: 'click', target: describe(el), keyword: 'Open Context Menu' });
   };
 
+  /**
+   * The click that was only aiming at a field, and the field it aimed at.
+   *
+   * Kept by id because the step it produced may now name the control around the
+   * field rather than the field itself, and the typing that follows has to be
+   * able to say "that click was mine" all the same.
+   */
+  private aiming: { id: string; el: Element } | null = null;
+
   /** The press this click came from, if the pointer did not travel meanwhile. */
   private aimedAt(event: MouseEvent): Element | null {
     const pressed = this.pressed;
@@ -708,8 +732,10 @@ export class Recorder {
     }
 
     // The click that put the caret here was aiming after all.
-    if (last?.kind === 'click' && sameElement(last.target, typing.target)) {
+    const aimedHere = this.aiming?.id === last?.id && this.aiming?.el === typing.el;
+    if (last?.kind === 'click' && (aimedHere || sameElement(last.target, typing.target))) {
       this.steps.pop();
+      this.aiming = null;
     }
     this.push({ kind: 'input', target: typing.target, value: typing.value });
   }
@@ -877,6 +903,38 @@ function isHitTestable(el: HTMLElement): boolean {
 }
 
 /**
+ * The nearest thing a click can actually land on.
+ *
+ * react-select's combobox is a four-pixel input dropped into a grid cell with
+ * the page's own markup drawn over it. It is what has focus and what the event
+ * reports, so that is what gets recorded — and a replay clicking its centre is
+ * told that another element would receive the click. What the person pressed
+ * was the control around it.
+ *
+ * Only ever asked when the element fails its own hit test, so an ordinary field
+ * is untouched. The climb stops at a form or a section, and at anything big
+ * enough to be the page rather than a control: a locator for the whole layout
+ * would replay as a click on the middle of the screen.
+ */
+function reachable(el: Element): Element {
+  if (!(el instanceof HTMLElement) || isHitTestable(el)) return el;
+
+  let candidate = el.parentElement;
+  for (let hops = 0; candidate && hops < 4; hops += 1) {
+    if (STRUCTURAL.has(candidate.tagName)) break;
+    if (isHitTestable(candidate) && !fillsTheScreen(candidate)) return candidate;
+    candidate = candidate.parentElement;
+  }
+  return el;
+}
+
+/** Too big to be the thing that was pressed. */
+function fillsTheScreen(el: Element): boolean {
+  const { width, height } = el.getBoundingClientRect();
+  return width * height > window.innerWidth * window.innerHeight * 0.5;
+}
+
+/**
  * Ancestors whose `:hover` shows something, read from the page's own stylesheets.
  *
  * A menu opened by JavaScript announces itself: nodes arrive, or an attribute
@@ -999,6 +1057,17 @@ function hasEdgeBar(): boolean {
 /** Shorter than this and nothing lands under it. */
 const MIN_BAR_HEIGHT = 24;
 
+/**
+ * The one field inside a control, if that is all there is.
+ *
+ * react-select and every combobox like it: the thing pressed is a wrapper, and
+ * the thing typed into is an input somewhere under it.
+ */
+function onlyTextEntryInside(el: Element): Element | undefined {
+  const fields = [...el.querySelectorAll('input,textarea')].filter(isTextEntry);
+  return fields.length === 1 ? fields[0] : undefined;
+}
+
 /** Something you type into, rather than press. */
 function isTextEntry(el: Element): boolean {
   if (el instanceof HTMLTextAreaElement) return true;
@@ -1044,7 +1113,12 @@ function resolveTarget(el: Element): Element {
   // with it — Material's form field holds exactly that pair, which is why
   // requiring a single candidate never fired there.
   const controls = outermost.filter((c) => !(c instanceof HTMLLabelElement));
-  return controls.length === 1 && controls[0] ? controls[0] : el;
+  const only = controls.length === 1 ? controls[0] : undefined;
+  // Descending is right when the control fills the wrapper, as Angular
+  // Material's does. react-select's is four pixels wide with a span drawn over
+  // it, and handing that back records a click nothing can land on — the thing
+  // pressed was the wrapper, and the wrapper is what stays.
+  return only instanceof HTMLElement && isHitTestable(only) ? only : el;
 }
 
 // ── Wait inference ───────────────────────────────────────────────────────────

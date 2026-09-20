@@ -1,0 +1,22 @@
+<!doctype html><meta charset="utf-8"><title>combobox</title><link rel=stylesheet href=_base.css>
+<!-- react-select, reduced to the part that breaks a replay: the input that
+     holds focus is four pixels wide and sits under the span that shows the
+     current value. The event reports the input, so that is what gets recorded
+     — and clicking its centre during a replay is refused, because the span
+     would receive the click. What the person pressed was the control. -->
+<div id="control" style="width:260px;border:1px solid #999;padding:24px 10px;display:grid;
+     grid-template-columns:1fr auto;align-items:center;cursor:pointer">
+  <div style="display:grid;grid-area:1/1/2/3">
+    <input id="typed" style="grid-area:1/1;width:4px;min-width:2px;border:0;outline:0;background:transparent">
+    <span id="value" style="grid-area:1/1;color:#555">Select a state</span>
+  </div>
+</div>
+<div id="menu" hidden style="width:260px;border:1px solid #999;border-top:0">
+  <div id="opt-nsw" style="padding:10px">New South Wales</div>
+</div>
+<script>
+  const control = document.getElementById('control');
+  const input = document.getElementById('typed');
+  control.addEventListener('mousedown', () => { input.focus(); document.getElementById('menu').hidden = false; });
+</script>
+<script src="harness.js"></script>

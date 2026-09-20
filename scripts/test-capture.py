@@ -99,6 +99,13 @@ def check_scoring(driver):
         if not got or got["value"] != wanted:
             problems.append(f"{selector}: expected {wanted}, got {got and got['value']}  ({why})")
 
+    def expect_note(selector, fragment, why):
+        got = locator(driver, selector)
+        if not got or fragment not in (got["note"] or ""):
+            problems.append(
+                f"{selector}: expected a note about {fragment!r}, got "
+                f"{got and got['note']!r}  ({why})")
+
     def expect_fragile(selector, fragile, why):
         got = locator(driver, selector)
         if not got or got["fragile"] != fragile:
@@ -113,9 +120,16 @@ def check_scoring(driver):
     expect('a[href="/users/1"]', 'css:a[href="/users/1"]',
            "two links read the same, so the text cannot be the locator")
 
-    # The id is a counter: usable, and flagged. The class beside it is a state.
+    # A counter id is usable and has to say so. Three libraries hand them out,
+    # and the warning is the whole of what separates them from a real id: the
+    # number is render order, and render order is not a name.
+    expect("#mat-select-0", "id:mat-select-0", "Angular Material's counter, with nothing better on offer")
+    expect_fragile("#mat-select-0", True, "a counter moves when anything renders before it")
+    expect_note("#mat-select-0", "counter", "the warning is what makes a counter id honest")
+
     expect("#el-id-1024-3", "id:el-id-1024-3", "a counter id, with nothing better on the element")
     expect_fragile("#el-id-1024-3", True, "a counter moves when anything renders before it")
+    expect_note("#el-id-1024-3", "counter", "Element Plus hands these out the same way")
     if any("is-focused" in c["value"] for c in (candidates(driver, "#el-id-1024-3") or [])):
         problems.append("a state class was offered as a handle")
 
@@ -317,6 +331,23 @@ def under_a_bar(driver):
     driver.execute_script("arguments[0].scrollIntoView({block:'center'})", button)
     time.sleep(0.4)
     button.click()
+    time.sleep(1.2)
+
+
+def combobox(driver):
+    # On the padding, the way a person clicks a dropdown — not on the text.
+    control = driver.find_element(By.ID, "control")
+    ActionChains(driver).move_to_element_with_offset(control, 0, -22).click().perform()
+    time.sleep(1.0)
+    driver.find_element(By.ID, "opt-nsw").click()
+    time.sleep(1.0)
+
+
+def combobox_typed(driver):
+    control = driver.find_element(By.ID, "control")
+    ActionChains(driver).move_to_element_with_offset(control, 0, -22).click().perform()
+    time.sleep(0.4)
+    driver.find_element(By.ID, "typed").send_keys("new")
     time.sleep(1.2)
 
 
@@ -557,6 +588,26 @@ CASES = [
             (len(s) == 1, f"expected one step, got {len(s)}: {[x['keyword'] for x in s]}"),
             (s and s[0].get("underBar") is True,
              "the page pins a footer to the bottom edge and the step did not record it"),
+        ],
+    ),
+    Case(
+        "a field nothing can click is recorded as the control around it",
+        "combobox.html", combobox,
+        lambda s: [
+            (len(s) == 2, f"expected two steps, got {len(s)}: {[x['locator'] for x in s]}"),
+            (s and s[0]["locator"] == "id:control",
+             f"the opening click was recorded as {s[0]['locator'] if s else None}"),
+            (len(s) > 1 and s[1]["locator"] == "id:opt-nsw",
+             f"the option came out as {s[1]['locator'] if len(s) > 1 else None}"),
+        ],
+    ),
+    Case(
+        "typing still belongs to the field, not the control",
+        "combobox.html", combobox_typed,
+        lambda s: [
+            (len(s) == 1, f"expected one step, got {len(s)}: {[x['keyword'] for x in s]}"),
+            (s and s[0]["keyword"] == "Input Text", f"keyword was {s[0]['keyword'] if s else None}"),
+            (s and s[0]["locator"] == "id:typed", f"step targeted {s[0]['locator'] if s else None}"),
         ],
     ),
     Case(
