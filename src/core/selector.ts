@@ -6,7 +6,7 @@
  * a redeploy, and let the user pick with the trade-off visible.
  */
 import type { SelectorCandidate, SelectorKind } from './types';
-import { classify, isUseless } from './volatility';
+import { carriesGeneratedToken, classify, isGeneratedId, isUseless } from './volatility';
 import {
   ancestors, countMatches, esc, isUnique, normalizeText,
   nthOfType, queryInScope, quote,
@@ -50,10 +50,17 @@ export function generateCandidates(el: Element): SelectorCandidate[] {
     if (!value) continue;
     const sel = `[${attr}=${quote(value)}]`;
     const unique = isUnique(el, sel);
+    const recordId = carriesGeneratedToken(value);
     push({
       kind: 'testid', engine: 'css', value: unique ? sel : `${tag}${sel}`,
-      penalty: unique ? 0 : 10,
-      notes: [`purpose-built test hook (${attr})`, unique ? 'unique on page' : 'not unique — tag added'],
+      penalty: (unique ? 0 : 10) + (recordId ? 14 : 0),
+      notes: [
+        `purpose-built test hook (${attr})`,
+        unique ? 'unique on page' : 'not unique — tag added',
+        ...(recordId
+          ? ['⚠ carries a record id — another environment will have a different one']
+          : []),
+      ],
     });
     // Playwright reads whichever attribute testIdAttribute names — data-testid
     // out of the box. Offer getByTestId() only when it will work unconfigured,
@@ -220,13 +227,15 @@ function buildPathSelector(el: Element): SelectorCandidate {
   let current: Element | null = el;
   let depth = 0;
   let anchored = false;
+  let anchoredOnCounter = false;
 
   while (current && depth < 12) {
     const tag = current.tagName.toLowerCase();
     const anchor = anchorFor(current);
     if (anchor) {
-      parts.unshift(anchor);
+      parts.unshift(anchor.value);
       anchored = true;
+      anchoredOnCounter = anchor.counter;
       break;
     }
     const siblings = current.parentElement
@@ -242,7 +251,11 @@ function buildPathSelector(el: Element): SelectorCandidate {
   const notes = [
     '⚠ structural — breaks whenever the markup is reordered',
     ...(indexed ? ['⚠ depends on sibling position'] : []),
-    ...(anchored ? ['anchored to a stable ancestor'] : []),
+    ...(anchored
+      ? [anchoredOnCounter
+          ? '⚠ anchored to a component library counter — it moves with render order'
+          : 'anchored to a stable ancestor']
+      : []),
   ];
 
   return {
@@ -254,13 +267,23 @@ function buildPathSelector(el: Element): SelectorCandidate {
 }
 
 /** A stable hook on an ancestor we can root the path at. */
-function anchorFor(el: Element): string | null {
+/**
+ * Where a structural path can start from, and whether that start is a name.
+ *
+ * Anchoring on a counter id is still worth doing — `#pn_id_7 > span` beats
+ * eight levels of nth-of-type — but the path is then exactly as fragile as the
+ * counter it hangs from, and it was being handed over with the note for an
+ * ordinary path. Recorded on PrimeNG, whose every component id is a counter.
+ */
+function anchorFor(el: Element): { value: string; counter: boolean } | null {
   for (const attr of TEST_ATTRIBUTES) {
     const v = el.getAttribute(attr);
-    if (v) return `[${attr}=${quote(v)}]`;
+    if (v) return { value: `[${attr}=${quote(v)}]`, counter: false };
   }
   const id = el.getAttribute('id');
-  if (id && !classify(id).volatile && isUnique(el, `#${esc(id)}`)) return `#${esc(id)}`;
+  if (id && !classify(id).volatile && isUnique(el, `#${esc(id)}`)) {
+    return { value: `#${esc(id)}`, counter: isGeneratedId(id) };
+  }
   return null;
 }
 

@@ -137,6 +137,25 @@ export function isGeneratedId(id: string): boolean {
   );
 }
 
+/**
+ * Does this value carry a record id?
+ *
+ * `data-test="category-01M2ZB0KQPPRAXR26GHEA7SJ2K"` on practicesoftwaretesting:
+ * a purpose-built test hook with a row id inside it. It is still the best
+ * handle that page offers — but it belongs to one seeded database, and the
+ * suite that uses it passes on the machine it was recorded against and finds
+ * nothing on anyone else's. Scored as "the most durable locator available"
+ * until this, which is true of the attribute and not of the value.
+ *
+ * Long tokens only: `bug-step-1` and `el-id-1024-3` are counters and numbered
+ * fields, and they are the ones people write on purpose.
+ */
+export function carriesGeneratedToken(value: string): boolean {
+  return value
+    .split(/[-_/.\s]+/)
+    .some((token) => token.length >= 8 && classify(token).volatile);
+}
+
 export const isVolatile = (t: string) => classify(t).volatile;
 export const isUseless = (t: string) => {
   const v = classify(t);

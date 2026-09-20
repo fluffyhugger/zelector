@@ -123,6 +123,17 @@ def check_scoring(driver):
     # A counter id is usable and has to say so. Three libraries hand them out,
     # and the warning is the whole of what separates them from a real id: the
     # number is render order, and render order is not a name.
+    # A hook is as durable as its value. This one carries a row id.
+    expect_note('[data-test^="product-"]', "record id",
+                "a test hook with a database id in it is not environment-proof")
+    expect_fragile('[data-test^="product-"]', True, "another environment seeds different ids")
+
+    # A path is only as good as what it hangs from. This one hangs from a
+    # counter, and said "no stable attribute found" — which is a different
+    # warning about a different problem.
+    expect_note("#pn_id_7 > span", "counter",
+                "a path anchored on a counter id inherits the counter's fragility")
+
     expect("#mat-select-0", "id:mat-select-0", "Angular Material's counter, with nothing better on offer")
     expect_fragile("#mat-select-0", True, "a counter moves when anything renders before it")
     expect_note("#mat-select-0", "counter", "the warning is what makes a counter id honest")

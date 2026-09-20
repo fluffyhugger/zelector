@@ -20,7 +20,7 @@
  *     the worst way for a test to fail.
  */
 import type { PickResult } from './types';
-import { classify, isGeneratedId, isUseless } from './volatility';
+import { carriesGeneratedToken, classify, isGeneratedId, isUseless, isVolatile } from './volatility';
 
 export interface RobotLocator {
   /** e.g. "data:testid:confirm-order" */
@@ -91,11 +91,16 @@ function baseLocator(result: PickResult): Omit<RobotLocator, 'frames'> {
   for (const attr of DATA_ATTRS) {
     const v = a[attr];
     if (v && safeForPrefix(v)) {
+      // The attribute is durable; the value need not be. A hook with a row id
+      // in it belongs to one seeded database.
+      const recordId = carriesGeneratedToken(v);
       return {
         strategy: 'data',
         value: `data:${attr.slice('data-'.length)}:${v}`,
-        note: 'dedicated test hook — the most durable locator available',
-        fragile: false,
+        note: recordId
+          ? '⚠ test hook carrying a record id — another environment will have a different one'
+          : 'dedicated test hook — the most durable locator available',
+        fragile: recordId,
       };
     }
   }
@@ -162,12 +167,17 @@ function baseLocator(result: PickResult): Omit<RobotLocator, 'frames'> {
 
   // A css: fallback is only as good as the candidate underneath it: an
   // [aria-label] selector is fine, an nth-of-type chain is a countdown.
+  // A path hanging from a counter id is as good as the counter, which is to
+  // say it is good until something renders above it. The candidate already
+  // knows; saying "no stable attribute found" here threw that away.
+  const counterAnchored = candidate?.notes.find((n) => n.includes('counter'));
+
   return {
     strategy: 'css',
     value: `css:${css}`,
     note: ambiguous
       ? `⚠ matches ${candidate?.matches} elements — Selenium will take the first one`
-      : 'no stable attribute found — consider asking for a data-testid',
+      : counterAnchored ?? 'no stable attribute found — consider asking for a data-testid',
     fragile: ambiguous || !candidate || candidate.kind === 'path' || candidate.score < 55,
   };
 }
@@ -424,7 +434,14 @@ export function variableName(result: PickResult): string {
     identifyingClass(a['class']) ??
     result.tagName;
 
-  const cleaned = (source || result.tagName)
+  // ${CATEGORY_01M2ZB0KQPPRAXR26GHEA7SJ2K} names nothing a person can read. The
+  // id belongs in the locator, where it is doing a job, and not in the name.
+  const named = (source || result.tagName)
+    .split(/([-_/.\s]+)/)
+    .filter((part) => !(part.length >= 8 && isVolatile(part)))
+    .join('');
+
+  const cleaned = (named || result.tagName)
     .normalize('NFKD')
     // Fold Latin diacritics only. Stripping every combining mark would take
     // the vowels and tones out of Thai with them — ยืนยัน would come out ยนยน — and

@@ -196,6 +196,10 @@ say about.
 utility (stable but meaningless, like Tailwind classes), state (`is-focused`,
 `ant-select-open` — a stable string that names a moment rather than an element,
 and is gone by the time a replay looks for it) and stable.
+A test attribute is judged on its value as well: `data-test="product-01M2ZB0KTWN…"`
+is a purpose-built hook carrying a row id, which is durable until someone runs
+the suite against a different database.
+
 `src/core/selector.ts` then emits candidates in order of preference: test attributes,
 `id`, `getByRole`, `getByLabel` / `name=`, `aria-label`, text, other semantic
 attributes, class combination, structural path.

@@ -23,6 +23,8 @@ const cases: Array<[string, PickResult]> = [
   ['iframe_cross_origin', { ...base, tagName: 'input', text: '', attributes: { name:'card_number' }, hops: [{ type:'iframe', hostSelector:'iframe[src*="/pay"]', reliable:false }], candidates: [{ kind:'name', engine:'css', value:'[name="card_number"]', score:70, matches:1, notes:[] }] }],
   ['iframe_nested_shadow', { ...base, tagName: 'button', text: 'Confirm', attributes: { class:'confirm' }, hops: [{ type:'iframe', hostSelector:'#outer-frame', reliable:true }, { type:'shadow', hostSelector:'pay-widget', closed:true }], candidates: [{ kind:'class', engine:'css', value:'button.confirm', score:45, matches:1, notes:[] }] }],
   ['iframe_radio', { ...base, tagName: 'input', text: '', attributes: { type:'radio', name:'card_type', value:'visa', id:'visa' }, hops: [{ type:'iframe', hostSelector:'#checkout-frame', reliable:true }], candidates: [{ kind:'id', engine:'css', value:'#visa', score:85, matches:1, notes:[] }] }],
+  // practicesoftwaretesting: a purpose-built hook with a row id inside it.
+  ['testid_with_record_id', { ...base, tagName: 'a', text: 'Claw Hammer', attributes: { 'data-test': 'product-01M2ZB0KTWNEAT0VYMPH5FYPDY', href: '/product/01M2ZB0KTWNEAT0VYMPH5FYPDY' }, candidates: [{ kind:'testid', engine:'css', value:'[data-test="product-01M2ZB0KTWNEAT0VYMPH5FYPDY"]', score:84, matches:1, notes:[] }] }],
   ['select_multiple', { ...base, tagName: 'select', text: '', attributes: { name:'tags', id:'tag-list', multiple:'' }, candidates: [{ kind:'id', engine:'css', value:'#tag-list', score:85, matches:1, notes:[] }] }],
   ['thai_text_only', { ...base, tagName: 'span', text: 'ราคารวมทั้งหมด', attributes: {}, candidates: [{ kind:'path', engine:'css', value:'span', score:10, matches:1, notes:[] }] }],
 ];
