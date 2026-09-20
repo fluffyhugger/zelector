@@ -740,6 +740,10 @@ export class Recorder {
     dialog?: DialogStep;
     dropTarget?: PickResult;
   }): void {
+    // Asked here, once per step, while the page still looks the way it did
+    // when the person acted: a cookie bar that is dismissed later was there
+    // for the steps recorded under it.
+    const underBar = PRESS_STEPS.has(partial.kind) && hasEdgeBar();
     // A click on a <label> is delivered again, forwarded to the control, and a
     // toggle reached that way reports the state on the way in before it reports
     // the state it settled on. Either way it is one action, so the second
@@ -780,6 +784,7 @@ export class Recorder {
       target: partial.target,
       ...(partial.value !== undefined ? { value: partial.value } : {}),
       ...(partial.values !== undefined ? { values: partial.values } : {}),
+      ...(underBar ? { underBar: true } : {}),
       ...(partial.keyword !== undefined ? { keyword: partial.keyword } : {}),
       ...(partial.dialog !== undefined ? { dialog: partial.dialog } : {}),
       ...(partial.dropTarget !== undefined ? { dropTarget: partial.dropTarget } : {}),
@@ -948,6 +953,37 @@ const ACTING_KEYS: Record<string, string> = {
   Enter: 'RETURN',
   Escape: 'ESCAPE',
 };
+
+/**
+ * Is the page keeping a bar pinned to the top or bottom of the window?
+ *
+ * Sticky headers, cookie bars, ad footers. They matter to a replay and to
+ * nothing else: WebDriver scrolls an element the *smallest* distance that puts
+ * it inside the viewport, which parks it against whichever edge it came from —
+ * and a bar pinned to that edge is then on top of it. The click is refused with
+ * "Other element would receive the click", after the wait has already passed,
+ * because the element really is visible. It is simply underneath something.
+ *
+ * Measured rather than searched: elementsFromPoint down the middle of each
+ * edge, which costs nothing on a page with ten thousand nodes. A bar is
+ * something pinned that does not cover the page — a modal backdrop is fixed
+ * too, and is not this.
+ */
+function hasEdgeBar(): boolean {
+  const probe = (y: number): boolean =>
+    document.elementsFromPoint(Math.round(window.innerWidth / 2), y).some((el) => {
+      if (isNotPageContent(el)) return false;
+      const position = getComputedStyle(el).position;
+      if (position !== 'fixed' && position !== 'sticky') return false;
+      const { height } = el.getBoundingClientRect();
+      return height >= MIN_BAR_HEIGHT && height <= window.innerHeight * 0.4;
+    });
+
+  return probe(2) || probe(Math.max(2, window.innerHeight - 3));
+}
+
+/** Shorter than this and nothing lands under it. */
+const MIN_BAR_HEIGHT = 24;
 
 /** Something you type into, rather than press. */
 function isTextEntry(el: Element): boolean {

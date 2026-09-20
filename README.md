@@ -60,6 +60,7 @@ comes to hang on something it never mentions:
 | a URL typed by hand | `Go To`, since nothing clicked led there |
 | double click, right click | `Double Click Element`, `Open Context Menu` — gestures the picker cannot offer for an element you have merely pointed at |
 | a multiple select | one step carrying every label, because `change` fires per option and a `<select multiple>` does not accumulate across calls |
+| a sticky header or ad footer | one `Bring Into View` keyword, called before each click on that page. WebDriver scrolls an element the smallest distance that puts it in the viewport, which parks it against the edge the bar is pinned to — the click is then refused with "Other element would receive the click" long after the wait has passed |
 
 The recording survives navigation: it lives in the service worker, and the new
 page picks it back up — which also turns the click that navigated into a
@@ -167,7 +168,7 @@ Five passes, each for a kind of mistake the others let through:
   a template breaks on the quote character it uses.
 - **snapshots** — the generated suites, committed. Output that is valid and
   quietly worse shows up as a diff rather than as a surprise.
-- **capture** — twenty-two recordings driven through WebDriver. Every one is a
+- **capture** — twenty-three recordings driven through WebDriver. Every one is a
   bug that happened: a pause mid-typing, a checkbox under its label, a menu
   that opens on mousedown, another extension's markup, a list portalled to
   `<body>` above an id that is regenerated on every render, a calendar credited

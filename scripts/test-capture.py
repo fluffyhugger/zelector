@@ -306,6 +306,14 @@ def right_click(driver):
     time.sleep(1.0)
 
 
+def under_a_bar(driver):
+    button = driver.find_element(By.ID, "submit")
+    driver.execute_script("arguments[0].scrollIntoView({block:'center'})", button)
+    time.sleep(0.4)
+    button.click()
+    time.sleep(1.2)
+
+
 def container(driver):
     form = driver.find_element(By.ID, "userForm")
     ActionChains(driver).move_to_element_with_offset(form, 5, 5).click().perform()
@@ -534,6 +542,15 @@ CASES = [
             # What the menu offers is an ordinary click and records itself.
             (len(s) > 1 and s[1]["locator"] == "id:rename",
              f"the menu item came out as {s[1]['locator'] if len(s) > 1 else None}"),
+        ],
+    ),
+    Case(
+        "a click recorded under a pinned bar says so",
+        "sticky-footer.html", under_a_bar,
+        lambda s: [
+            (len(s) == 1, f"expected one step, got {len(s)}: {[x['keyword'] for x in s]}"),
+            (s and s[0].get("underBar") is True,
+             "the page pins a footer to the bottom edge and the step did not record it"),
         ],
     ),
     Case(

@@ -113,6 +113,15 @@ export interface RecordedStep {
   values?: string[];
   /** SeleniumLibrary keyword. Defaults to the primary from robotActionsFor(). */
   keyword?: string;
+  /**
+   * The page had a bar pinned to an edge when this was recorded.
+   *
+   * Only clicking cares. WebDriver scrolls an element the smallest distance
+   * that puts it in the viewport, which leaves it against an edge — and a
+   * sticky header or ad footer is then on top of it, so the click is refused
+   * even though the element is visible and the wait has passed.
+   */
+  underBar?: boolean;
   /** `dialog` steps only. */
   dialog?: DialogStep;
   /** `drag` steps only — where it was let go. */
@@ -259,6 +268,36 @@ class Keywords {
 
 // ── Rendering ────────────────────────────────────────────────────────────────
 
+/**
+ * One keyword for "put this where a click can reach it", added only to suites
+ * recorded on a page that pins something to an edge.
+ *
+ * Scroll Element Into View is not this: it is move_to_element, which scrolls
+ * the same smallest distance WebDriver already scrolls, so an element parked
+ * under a sticky footer stays under it. Centring is the only thing that moves
+ * it out. Measured on DemoQA, whose footer is 60px of fixed ad: as recorded the
+ * suite stopped at the State dropdown, and with this it runs to the end.
+ *
+ * `behavior: 'instant'` is not a preference. DemoQA sets `scroll-behavior:
+ * smooth` on <html>, and a smooth scroll is still travelling when the click
+ * that follows takes aim — the element was measured at y=765 in a 757-tall
+ * window immediately after the call, and at y=474 four hundred milliseconds
+ * later. Asking for instant is what makes the next line safe without a Sleep,
+ * which is the thing this whole tool exists to keep out of a suite.
+ */
+function bringIntoView(kws: Keywords): string {
+  return kws.add(
+    'Bring Into View',
+    ['${arg_locator}'],
+    [
+      '    ${el}=    Get WebElement    ${arg_locator}',
+      '    Execute Javascript    '
+      + "arguments[0].scrollIntoView({block: 'center', behavior: 'instant'})"
+      + '    ARGUMENTS    ${el}',
+    ],
+  );
+}
+
 /** The frame variables for an element, declared once each in the suite. */
 function frameVarsFor(target: PickResult, syms: Symbols): string[] {
   const { frames } = toRobotLocator(target);
@@ -381,9 +420,13 @@ function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedS
   // Drag And Drop names both ends, so there is no single element for a keyword
   // to be about.
   if (step.kind === 'drag' && step.dropTarget) {
+    const source = syms.forTarget(step.target);
     return {
-      pre: wait ? [wait] : [],
-      call: `    Drag And Drop    ${v(syms.forTarget(step.target))}    ${v(syms.forTarget(step.dropTarget))}`,
+      pre: [
+        ...(wait ? [wait] : []),
+        ...(step.underBar ? [`    ${bringIntoView(kws)}    ${v(source)}`] : []),
+      ],
+      call: `    Drag And Drop    ${v(source)}    ${v(syms.forTarget(step.dropTarget))}`,
     };
   }
 
@@ -432,12 +475,14 @@ function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedS
 
   const args = action.argument ? [argRef(argName(action.argument), action.variadic)] : [];
   const callArgs = [v(varName), ...args].join('    ');
+  const reach = step.underBar ? [`    ${bringIntoView(kws)}    ${v(varName)}`] : [];
   const body = [
     ...framedWait,
     ...inFrames(
       [
         ...(waitFramed && sameFrame && wait ? [wait] : []),
         ...(inKeyword ? [inKeyword] : []),
+        ...reach,
         `    ${action.keyword}    ${callArgs}`,
       ],
       step.target,

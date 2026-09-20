@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><title>sticky footer</title><link rel=stylesheet href=_base.css>
+<!-- The shape of every practice site and half the real ones: a bar pinned to
+     the bottom of the window. WebDriver scrolls an element the smallest
+     distance that brings it into the viewport, which parks it against the
+     bottom edge — underneath this — and the click is refused after the wait
+     has already passed, because the element is visible. It is just covered. -->
+<div style="height:1400px;padding-top:12px">scroll down for the form</div>
+<button id="submit" style="padding:10px">Submit</button>
+<div style="height:600px"></div>
+<footer style="position:fixed;left:0;right:0;bottom:0;height:60px;background:#333;color:#fff;padding:18px">
+  an advert nobody asked for
+</footer>
+<script src="harness.js"></script>

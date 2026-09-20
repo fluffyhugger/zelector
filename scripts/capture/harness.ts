@@ -12,7 +12,7 @@
 import { installHooks } from '@/main-world/hooks';
 import { Recorder } from '@/main-world/recorder';
 import type { RecordedStep } from '@/core/recording';
-import { actionForStep, dialogKeyword } from '@/core/recording';
+import { actionForStep, dialogKeyword, toRobotSuite } from '@/core/recording';
 import { toRobotLocator } from '@/core/robot';
 import { generateCandidates } from '@/core/selector';
 import { describe as describeElement } from '@/main-world/picker';
@@ -26,6 +26,7 @@ interface Summary {
   value?: string;
   values?: string[];
   dropTarget?: string;
+  underBar?: boolean;
   wait: string;
   waitTarget?: string;
   reason: string;
@@ -46,6 +47,7 @@ const summarise = (step: RecordedStep): Summary => ({
   locator: toRobotLocator(step.target).value,
   ...(step.value === undefined ? {} : { value: step.value }),
   ...(step.values === undefined ? {} : { values: step.values }),
+  ...(step.underBar ? { underBar: true } : {}),
   ...(step.dropTarget ? { dropTarget: toRobotLocator(step.dropTarget).value } : {}),
   wait: step.wait.kind,
   ...(step.wait.target ? { waitTarget: toRobotLocator(step.wait.target).value } : {}),
@@ -64,6 +66,16 @@ Object.assign(window as unknown as Record<string, unknown>, {
     start: () => recorder.start(),
     stop: () => recorder.stop(),
     steps: () => recorder.snapshot().steps.map(summarise),
+
+    /**
+     * The file someone would download, not a summary of it.
+     *
+     * Every assertion here reads a step, which is one layer short of what
+     * ships: a renderer that was never called produced dialog steps nothing
+     * complained about for two days. This is the whole suite, so a check can
+     * be made against the thing itself.
+     */
+    suite: () => toRobotSuite(recorder.snapshot()),
 
     /** What the scorer makes of one element, against a real layout. */
     candidates: (selector: string) => {

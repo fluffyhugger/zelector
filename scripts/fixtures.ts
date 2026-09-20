@@ -161,6 +161,25 @@ const dialogFlow: Recording = {
 
 writeFileSync('rf/_recorded_dialogs.robot', toRobotSuite(dialogFlow));
 
+// A page that pins a bar to an edge: the clicks need putting where a click can
+// reach them, and the helper is defined once however many steps ask for it.
+const stickyFlow: Recording = {
+  active: false,
+  startedAt: Date.UTC(2026, 8, 20),
+  startUrl: 'https://example.com/form',
+  name: 'Under A Sticky Footer',
+  steps: [
+    { kind: 'input', target: el('input', { id: 'address' }), value: 'somewhere',
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    { kind: 'click', target: el('div', { id: 'state-select' }, 'Select state'), underBar: true,
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    { kind: 'click', target: el('button', { id: 'submit', type: 'submit' }, 'Submit'), underBar: true,
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+  ].map(step),
+};
+
+writeFileSync('rf/_recorded_sticky.robot', toRobotSuite(stickyFlow));
+
 // A search submitted with the keyboard, and a file whose path nobody knows.
 const keyFlow: Recording = {
   active: false,
