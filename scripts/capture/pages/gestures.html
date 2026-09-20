@@ -1,0 +1,26 @@
+<!doctype html><meta charset="utf-8"><title>gestures</title><link rel=stylesheet href=_base.css>
+<!-- The two gestures no other event reports: a cell that opens its editor on
+     double click, and a row with a menu of its own on right click. Replayed as
+     ordinary clicks, neither page does anything at all. -->
+<table>
+  <tr><td id="cell" style="padding:10px;border:1px solid #999">Acme Ltd</td></tr>
+</table>
+<div id="row" style="margin-top:12px;padding:10px;border:1px solid #999">Order 1042</div>
+<div id="menu" hidden style="border:1px solid #999;width:140px">
+  <div id="rename" style="padding:8px">Rename</div>
+</div>
+<script>
+  const cell = document.getElementById('cell');
+  cell.addEventListener('dblclick', () => {
+    cell.textContent = '';
+    const input = document.createElement('input');
+    input.id = 'editor';
+    input.value = 'Acme Ltd';
+    cell.appendChild(input);
+  });
+  document.getElementById('row').addEventListener('contextmenu', (event) => {
+    event.preventDefault();
+    document.getElementById('menu').hidden = false;
+  });
+</script>
+<script src="harness.js"></script>

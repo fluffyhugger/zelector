@@ -253,6 +253,10 @@ export class RecPanel {
       : step.kind === 'key' ? 'Press Keys'
       : step.kind === 'drag' ? 'Drag And Drop'
       : step.kind === 'hover' ? 'Mouse Over'
+      // A gesture the picker has no alternatives for. Offering the list anyway
+      // shows the wrong keyword as selected, and swaps it for that one the
+      // moment anybody touches the control.
+      : !alternatives.some((a) => a.keyword === action.keyword) ? action.keyword
       : null;
     const keywordPicker = fixed
       ? h('span', { class: 'kw', text: fixed })

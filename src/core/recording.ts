@@ -105,6 +105,12 @@ export interface RecordedStep {
   target: PickResult;
   /** Typed text, selected label, expected value — or the URL for `navigate`. */
   value?: string;
+  /**
+   * Every label chosen in a `<select multiple>`, in the order the list has
+   * them. `value` holds the same thing joined for reading; this is what the
+   * suite is written from, because each label is a cell of its own.
+   */
+  values?: string[];
   /** SeleniumLibrary keyword. Defaults to the primary from robotActionsFor(). */
   keyword?: string;
   /** `dialog` steps only. */
@@ -150,8 +156,25 @@ export const emptyRecording = (startUrl = ''): Recording => ({
 /** The action a step renders as, honouring the keyword chosen in the panel. */
 export function actionForStep(step: RecordedStep): RobotAction {
   const actions = robotActionsFor(step.target);
-  return actions.find((a) => a.keyword === step.keyword) ?? actions[0]!;
+  const chosen = actions.find((a) => a.keyword === step.keyword);
+  if (chosen) return chosen;
+  const recorded = step.keyword ? RECORDED_ONLY[step.keyword] : undefined;
+  return recorded ?? actions[0]!;
 }
+
+/**
+ * Keywords a recording can produce but the picker does not offer.
+ *
+ * A double click and a right click are gestures: there is no way to ask for one
+ * from a list of alternatives for an element you have merely pointed at, and
+ * putting them there would push the assertions people actually write off the
+ * end of a list that is deliberately three or four long. They arrive from the
+ * recorder instead, and this is where they get their name and their shape.
+ */
+const RECORDED_ONLY: Record<string, RobotAction> = {
+  'Double Click Element': { keyword: 'Double Click Element', verb: 'Double Click', takesLocator: true },
+  'Open Context Menu': { keyword: 'Open Context Menu', verb: 'Right Click', takesLocator: true },
+};
 
 // ── Name tables ──────────────────────────────────────────────────────────────
 
@@ -284,8 +307,12 @@ function renderWait(wait: WaitSpec, syms: Symbols): string | null {
  * Every password field in the world would have hit this.
  */
 function argName(placeholder: string): string {
-  return `arg_${placeholder.replace(/^\$\{|\}$/g, '').toLowerCase()}`;
+  return `arg_${placeholder.replace(/^[$@]\{|\}$/g, '').toLowerCase()}`;
 }
+
+/** `@{arg_labels}` for a list argument, `${arg_text}` for a single one. */
+const argRef = (name: string, variadic: boolean | undefined): string =>
+  variadic ? `@{${name}}` : v(name);
 
 /** Robot's own comparison: case-insensitive, and underscores and spaces ignored. */
 const normalizeVar = (name: string): string => name.toLowerCase().replace(/[\s_]/g, '');
@@ -403,8 +430,8 @@ function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedS
   const varName = syms.forTarget(step.target);
   const name = keywordName(action, varName);
 
-  const args = action.argument ? [argName(action.argument)] : [];
-  const callArgs = [v(varName), ...args.map((a) => v(a))].join('    ');
+  const args = action.argument ? [argRef(argName(action.argument), action.variadic)] : [];
+  const callArgs = [v(varName), ...args].join('    ');
   const body = [
     ...framedWait,
     ...inFrames(
@@ -423,8 +450,12 @@ function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedS
   // A recorded value is data and gets escaped; the keyword's own placeholder is
   // Robot syntax and must not be, or ${TEXT} reaches the file as \${TEXT} and
   // arrives at the browser as six literal characters.
+  // A list argument spends one cell per label; a single one spends one cell.
   const passed = action.argument
-    ? `    ${step.value === undefined ? action.argument : safeValue(step.value)}`
+    ? action.variadic
+      ? `    ${(step.values ?? (step.value === undefined ? [] : [step.value]))
+          .map(safeValue).join('    ') || action.argument}`
+      : `    ${step.value === undefined ? action.argument : safeValue(step.value)}`
     : '';
 
   // A file input hands over a name and never a path — the browser will not say
@@ -586,7 +617,7 @@ export function toRobotSuite(rec: Recording, options: SuiteOptions = {}): string
   const keywords = kws.defs.map((def) =>
     [
       def.name,
-      ...(def.args.length ? [`    [Arguments]    ${def.args.map((a) => v(a)).join('    ')}`] : []),
+      ...(def.args.length ? [`    [Arguments]    ${def.args.join('    ')}`] : []),
       ...def.body,
     ].join('\n'),
   );

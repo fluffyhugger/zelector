@@ -200,6 +200,11 @@ export interface RobotAction {
   /** Extra argument column, e.g. the text to type or the value to assert. */
   argument?: string;
   /**
+   * The argument is a list: Select From List By Label takes any number of
+   * labels, and a multiple select is the only way to choose more than one.
+   */
+  variadic?: boolean;
+  /**
    * How the generated keyword is named. `verb` puts it in front
    * ("Click Export CSV"), `suffix` behind ("Export CSV Should Be Enabled").
    */
@@ -243,6 +248,17 @@ export function robotActionsFor(result: PickResult): RobotAction[] {
   const type = (result.attributes['type'] ?? '').toLowerCase();
 
   if (tag === 'select') {
+    // A multiple select takes as many labels as were chosen, and clearing it is
+    // its own keyword — Select From List By Label with nothing to select is not
+    // a way to deselect anything.
+    if (result.attributes['multiple'] !== undefined) {
+      return [
+        act('Select From List By Label', { verb: 'Select', argument: '@{LABELS}', variadic: true }),
+        act('Unselect From List By Label', { verb: 'Unselect', argument: '@{LABELS}', variadic: true }),
+        act('Unselect All From List', { verb: 'Clear' }),
+        act('List Selection Should Be', { suffix: 'Selection Should Be', argument: '@{LABELS}', variadic: true }),
+      ];
+    }
     return [
       act('Select From List By Label', { verb: 'Select', argument: '${LABEL}' }),
       act('List Selection Should Be', { suffix: 'Selection Should Be', argument: '${LABEL}' }),

@@ -252,6 +252,8 @@ export class Recorder {
     window.addEventListener('pointerover', this.onPointerOver, true);
     window.addEventListener('keydown', this.onKeyDown, true);
     window.addEventListener('click', this.onClick, true);
+    window.addEventListener('dblclick', this.onDoubleClick, true);
+    window.addEventListener('contextmenu', this.onContextMenu, true);
     window.addEventListener('input', this.onInput, true);
     window.addEventListener('change', this.onChange, true);
     window.addEventListener('focusout', this.onFocusOut, true);
@@ -272,6 +274,8 @@ export class Recorder {
     window.removeEventListener('pointerover', this.onPointerOver, true);
     window.removeEventListener('keydown', this.onKeyDown, true);
     window.removeEventListener('click', this.onClick, true);
+    window.removeEventListener('dblclick', this.onDoubleClick, true);
+    window.removeEventListener('contextmenu', this.onContextMenu, true);
     window.removeEventListener('input', this.onInput, true);
     window.removeEventListener('change', this.onChange, true);
     window.removeEventListener('focusout', this.onFocusOut, true);
@@ -542,8 +546,31 @@ export class Recorder {
     const el = event.target;
     if (el instanceof HTMLSelectElement) {
       this.flushTyping();
-      const label = el.selectedOptions[0]?.label ?? el.value;
-      this.push({ kind: 'select', target: describe(el), value: label });
+      const labels = Array.from(el.selectedOptions, (option) => option.label || option.value);
+      if (el.multiple) {
+        // One list, one step, however many options were ticked. change fires
+        // per option, and three steps each selecting one label replay as three
+        // calls where the last one is the only thing that matters — a multiple
+        // select does not accumulate across calls.
+        const last = this.steps[this.steps.length - 1];
+        if (last?.kind === 'select' && sameElement(last.target, describe(el))) {
+          last.values = labels;
+          last.value = labels.join(', ');
+          last.keyword = labels.length ? undefined : 'Unselect All From List';
+          last.at = Date.now();
+          this.emit();
+          return;
+        }
+        this.push({
+          kind: 'select',
+          target: describe(el),
+          value: labels.join(', '),
+          values: labels,
+          ...(labels.length ? {} : { keyword: 'Unselect All From List' }),
+        });
+        return;
+      }
+      this.push({ kind: 'select', target: describe(el), value: labels[0] ?? el.value });
       return;
     }
     if (el instanceof HTMLInputElement && isToggle(el)) {
@@ -586,6 +613,55 @@ export class Recorder {
     }
 
     if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) this.flushTyping();
+  };
+
+  /**
+   * The second click of a double click, which the browser has already delivered
+   * as two ordinary clicks.
+   *
+   * push() merges a repeat click on the same element inside 400ms, so by the
+   * time dblclick arrives there is one step to correct rather than two to
+   * collapse. Replaying it as a single click is not the same gesture: a grid
+   * that opens a cell editor, a word that selects on double click, a row that
+   * expands — none of them react to one.
+   */
+  private onDoubleClick = (event: MouseEvent): void => {
+    if (!this.capturing || isNotPageContent(event.target)) return;
+    const raw = event.target instanceof Element ? event.target : null;
+    if (!raw) return;
+    const el = resolveTarget(raw);
+    const last = this.steps[this.steps.length - 1];
+    if (last?.kind === 'click' && sameElement(last.target, describe(el))) {
+      last.keyword = 'Double Click Element';
+      last.at = Date.now();
+      this.emit();
+      return;
+    }
+    this.push({ kind: 'click', target: describe(el), keyword: 'Double Click Element' });
+  };
+
+  /**
+   * A right click, which no other event reports.
+   *
+   * The menu it opens belongs to the page or to the browser; either way what
+   * the test has to reproduce is the press, and Open Context Menu is the
+   * keyword for it. Nothing is recorded for the menu itself — if the page draws
+   * one, clicking an item in it is an ordinary click and records itself.
+   */
+  private onContextMenu = (event: MouseEvent): void => {
+    if (!this.capturing || isNotPageContent(event.target)) return;
+    const raw = this.aimedAt(event)
+      ?? deepElementFromPoint(event.clientX, event.clientY)
+      ?? (event.target instanceof Element ? event.target : null);
+    if (!raw || isNotPageContent(raw)) return;
+
+    const el = resolveTarget(raw);
+    // Counted as a click, or the menu it opens is credited to the pointer
+    // having rested there — a Mouse Over step in front of the item, explaining
+    // a menu that the right click opened.
+    this.previousClick = this.lastClicked?.el ?? null;
+    this.lastClicked = { el, at: Date.now() };
+    this.push({ kind: 'click', target: describe(el), keyword: 'Open Context Menu' });
   };
 
   /** The press this click came from, if the pointer did not travel meanwhile. */
@@ -659,6 +735,7 @@ export class Recorder {
     kind: StepKind;
     target: PickResult;
     value?: string;
+    values?: string[];
     keyword?: string;
     dialog?: DialogStep;
     dropTarget?: PickResult;
@@ -702,6 +779,7 @@ export class Recorder {
       kind: partial.kind,
       target: partial.target,
       ...(partial.value !== undefined ? { value: partial.value } : {}),
+      ...(partial.values !== undefined ? { values: partial.values } : {}),
       ...(partial.keyword !== undefined ? { keyword: partial.keyword } : {}),
       ...(partial.dialog !== undefined ? { dialog: partial.dialog } : {}),
       ...(partial.dropTarget !== undefined ? { dropTarget: partial.dropTarget } : {}),

@@ -58,6 +58,8 @@ comes to hang on something it never mentions:
 | hover menus | `Mouse Over`, whether the menu is opened by script or by a `:hover` rule that moves no nodes at all |
 | file pickers | `Choose File`, with the chosen name in a comment — the browser will not say where the file came from |
 | a URL typed by hand | `Go To`, since nothing clicked led there |
+| double click, right click | `Double Click Element`, `Open Context Menu` — gestures the picker cannot offer for an element you have merely pointed at |
+| a multiple select | one step carrying every label, because `change` fires per option and a `<select multiple>` does not accumulate across calls |
 
 The recording survives navigation: it lives in the service worker, and the new
 page picks it back up — which also turns the click that navigated into a
@@ -165,13 +167,18 @@ Five passes, each for a kind of mistake the others let through:
   a template breaks on the quote character it uses.
 - **snapshots** — the generated suites, committed. Output that is valid and
   quietly worse shows up as a diff rather than as a surprise.
-- **capture** — nineteen recordings driven through WebDriver. Every one is a
+- **capture** — twenty-two recordings driven through WebDriver. Every one is a
   bug that happened: a pause mid-typing, a checkbox under its label, a menu
   that opens on mousedown, another extension's markup, a list portalled to
   `<body>` above an id that is regenerated on every render, a calendar credited
   to the press that opened it.
 - **robot** — every generated suite through the real Robot Framework parser,
   and no variable declared that nothing uses.
+- **libdoc** — every keyword the generator emits, against SeleniumLibrary's own
+  documentation: does it exist, and does it take the arguments it is handed.
+  The pass also lists the keywords a recording still cannot reach, which is how
+  `Handle Alert` was found missing from the output while the panel, the capture
+  tests and a dead renderer all agreed it was there.
 
 Parsing is not verification. The first suite that actually ran found a keyword
 argument overwriting its own locator, which four green fixtures had nothing to

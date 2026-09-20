@@ -23,6 +23,7 @@ const cases: Array<[string, PickResult]> = [
   ['iframe_cross_origin', { ...base, tagName: 'input', text: '', attributes: { name:'card_number' }, hops: [{ type:'iframe', hostSelector:'iframe[src*="/pay"]', reliable:false }], candidates: [{ kind:'name', engine:'css', value:'[name="card_number"]', score:70, matches:1, notes:[] }] }],
   ['iframe_nested_shadow', { ...base, tagName: 'button', text: 'Confirm', attributes: { class:'confirm' }, hops: [{ type:'iframe', hostSelector:'#outer-frame', reliable:true }, { type:'shadow', hostSelector:'pay-widget', closed:true }], candidates: [{ kind:'class', engine:'css', value:'button.confirm', score:45, matches:1, notes:[] }] }],
   ['iframe_radio', { ...base, tagName: 'input', text: '', attributes: { type:'radio', name:'card_type', value:'visa', id:'visa' }, hops: [{ type:'iframe', hostSelector:'#checkout-frame', reliable:true }], candidates: [{ kind:'id', engine:'css', value:'#visa', score:85, matches:1, notes:[] }] }],
+  ['select_multiple', { ...base, tagName: 'select', text: '', attributes: { name:'tags', id:'tag-list', multiple:'' }, candidates: [{ kind:'id', engine:'css', value:'#tag-list', score:85, matches:1, notes:[] }] }],
   ['thai_text_only', { ...base, tagName: 'span', text: 'ราคารวมทั้งหมด', attributes: {}, candidates: [{ kind:'path', engine:'css', value:'span', score:10, matches:1, notes:[] }] }],
 ];
 
@@ -79,6 +80,11 @@ const flow: Recording = {
       wait: { kind: 'location', urlFragment: '/dashboard', timeoutS: 20, reason: '' } },
     { kind: 'select', target: el('select', { name: 'status' }), value: 'Shipped',
       wait: { kind: 'contains', target: el('table', { id: 'orders' }), timeoutS: 10, reason: '' } },
+    // Two labels, one of them carrying the cell separator, so the escaping is
+    // exercised per cell rather than on a joined string.
+    { kind: 'select', target: el('select', { name: 'tags', multiple: '' }),
+      value: 'Urgent, Back  order', values: ['Urgent', 'Back  order'],
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
     { kind: 'check', target: el('input', { type: 'checkbox', 'data-testid': 'select-all' }),
       wait: { kind: 'sleep', seconds: 2, timeoutS: 10, reason: '' } },
     { kind: 'check', target: el('input', { type: 'radio', name: 'shipping', value: 'express', id: 'ship-x' }),
@@ -86,6 +92,11 @@ const flow: Recording = {
     // The same button again: one variable, one keyword, two calls.
     { kind: 'click', target: el('button', { id: 'sign-in', type: 'submit' }, 'Sign in'),
       wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    // Two gestures the picker never offers: they can only be recorded.
+    { kind: 'click', target: el('td', { id: 'company-cell' }, 'Acme Ltd'),
+      keyword: 'Double Click Element', wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    { kind: 'click', target: el('div', { 'data-testid': 'order-row' }, 'Order 1042'),
+      keyword: 'Open Context Menu', wait: { kind: 'none', timeoutS: 10, reason: '' } },
     { kind: 'navigate', target: el('html', {}), value: 'https://shop.example.com/receipt',
       wait: { kind: 'none', timeoutS: 10, reason: '' } },
     { kind: 'assert', target: el('span', { 'data-testid': 'order-total' }, '฿1,240.00'),

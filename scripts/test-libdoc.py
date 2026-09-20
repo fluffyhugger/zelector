@@ -60,6 +60,9 @@ EXPECTED = [
     "Input Password",
     "Click Link",
     "Click Button",
+    "Double Click Element",
+    "Open Context Menu",
+    "Unselect All From List",
 ]
 
 # Read for the report at the end: what a recording still cannot express.

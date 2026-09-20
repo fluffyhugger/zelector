@@ -283,6 +283,29 @@ def portal_select(driver):
     time.sleep(1.0)
 
 
+def multi_select(driver):
+    # Ctrl-clicking a second option is how a person adds to a selection; the
+    # Select helper does the same thing without depending on the modifier key.
+    from selenium.webdriver.support.ui import Select
+    picker = Select(driver.find_element(By.ID, "tags"))
+    picker.select_by_visible_text("Urgent")
+    time.sleep(0.5)
+    picker.select_by_visible_text("Gift")
+    time.sleep(1.2)
+
+
+def double_click(driver):
+    ActionChains(driver).double_click(driver.find_element(By.ID, "cell")).perform()
+    time.sleep(1.2)
+
+
+def right_click(driver):
+    ActionChains(driver).context_click(driver.find_element(By.ID, "row")).perform()
+    time.sleep(1.0)
+    driver.find_element(By.ID, "rename").click()
+    time.sleep(1.0)
+
+
 def container(driver):
     form = driver.find_element(By.ID, "userForm")
     ActionChains(driver).move_to_element_with_offset(form, 5, 5).click().perform()
@@ -477,6 +500,40 @@ CASES = [
              f"the trigger was located by a title two elements share: {s[0]['locator'] if s else None}"),
             (len(s) > 1 and "b11" in s[1]["locator"],
              f"the option came out as {s[1]['locator'] if len(s) > 1 else None}"),
+        ],
+    ),
+    Case(
+        "a multiple select is one step carrying every label",
+        "multi-select.html", multi_select,
+        lambda s: [
+            (len(s) == 1, f"expected one step, got {len(s)}: {[x.get('value') for x in s]}"),
+            (s and s[0]["keyword"] == "Select From List By Label",
+             f"keyword was {s[0]['keyword'] if s else None}"),
+            (s and s[0].get("values") == ["Urgent", "Gift"],
+             f"the labels came out as {s[0].get('values') if s else None}"),
+        ],
+    ),
+    Case(
+        "a double click is one step, and says so",
+        "gestures.html", double_click,
+        lambda s: [
+            (len(s) == 1, f"expected one step, got {len(s)}: {[x['keyword'] for x in s]}"),
+            (s and s[0]["keyword"] == "Double Click Element",
+             f"keyword was {s[0]['keyword'] if s else None}"),
+            (s and s[0]["locator"] == "id:cell", f"step targeted {s[0]['locator'] if s else None}"),
+        ],
+    ),
+    Case(
+        "a right click is a step nothing else reports",
+        "gestures.html", right_click,
+        lambda s: [
+            (len(s) == 2, f"expected two steps, got {len(s)}: {[x['keyword'] for x in s]}"),
+            (s and s[0]["keyword"] == "Open Context Menu",
+             f"keyword was {s[0]['keyword'] if s else None}"),
+            (s and s[0]["locator"] == "id:row", f"step targeted {s[0]['locator'] if s else None}"),
+            # What the menu offers is an ordinary click and records itself.
+            (len(s) > 1 and s[1]["locator"] == "id:rename",
+             f"the menu item came out as {s[1]['locator'] if len(s) > 1 else None}"),
         ],
     ),
     Case(

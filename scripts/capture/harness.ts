@@ -24,6 +24,7 @@ interface Summary {
   keyword: string;
   locator: string;
   value?: string;
+  values?: string[];
   dropTarget?: string;
   wait: string;
   waitTarget?: string;
@@ -44,6 +45,7 @@ const summarise = (step: RecordedStep): Summary => ({
   keyword: keywordOf(step),
   locator: toRobotLocator(step.target).value,
   ...(step.value === undefined ? {} : { value: step.value }),
+  ...(step.values === undefined ? {} : { values: step.values }),
   ...(step.dropTarget ? { dropTarget: toRobotLocator(step.dropTarget).value } : {}),
   wait: step.wait.kind,
   ...(step.wait.target ? { waitTarget: toRobotLocator(step.wait.target).value } : {}),

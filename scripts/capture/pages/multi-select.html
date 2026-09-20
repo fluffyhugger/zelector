@@ -1,0 +1,12 @@
+<!doctype html><meta charset="utf-8"><title>multiple select</title><link rel=stylesheet href=_base.css>
+<!-- A <select multiple> fires change once per option, and each one reports the
+     whole selection. Recording a step per change replays as three calls where
+     only the last one counts, because a multiple select does not accumulate
+     across calls — and the recorder only ever read selectedOptions[0], so two
+     of the three labels were never written down at all. -->
+<select id="tags" multiple size="4">
+  <option>Urgent</option>
+  <option>Back order</option>
+  <option>Gift</option>
+</select>
+<script src="harness.js"></script>

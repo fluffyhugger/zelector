@@ -14,10 +14,16 @@ ${LOADING_SPINNER}      css:.loading-spinner
 ${STATUS}               name:status
 # fastest for the browser to resolve
 ${ORDERS}               id:orders
+# form field name — tied to the backend contract
+${TAGS}                 name:tags
 # dedicated test hook — the most durable locator available
 ${SELECT_ALL}           data:testid:select-all
 # fastest for the browser to resolve
 ${SHIP_X}               id:ship-x
+# fastest for the browser to resolve
+${COMPANY_CELL}         id:company-cell
+# dedicated test hook — the most durable locator available
+${ORDER_ROW}            data:testid:order-row
 # dedicated test hook — the most durable locator available
 ${ORDER_TOTAL}          data:testid:order-total
 # ⚠ breaks on copy edits and in other locales
@@ -43,10 +49,13 @@ Order Is Shipped After Checkout
     Click My Orders
     Wait Until Page Contains Element    ${ORDERS}    timeout=10s
     Select Status    Shipped
+    Select Tags    Urgent    Back\ \ order
     Sleep    2s
     Check Select All
     Choose Ship X
     Click Sign In
+    Double Click Company Cell
+    Right Click Order Row
     Go To    ${URL}
     Order Total Text Should Be    ฿1,240.00
     [Teardown]    Close Browser
@@ -75,6 +84,11 @@ Select Status
     Wait Until Element Is Visible    ${STATUS}    timeout=10s
     Select From List By Label    ${STATUS}    ${arg_label}
 
+Select Tags
+    [Arguments]    @{arg_labels}
+    Wait Until Element Is Visible    ${TAGS}    timeout=10s
+    Select From List By Label    ${TAGS}    @{arg_labels}
+
 Check Select All
     Wait Until Element Is Visible    ${SELECT_ALL}    timeout=10s
     Select Checkbox    ${SELECT_ALL}
@@ -82,6 +96,14 @@ Check Select All
 Choose Ship X
     Wait Until Element Is Enabled    ${SHIP_X}    timeout=10s
     Select Radio Button    ${SHIP_X_GROUP}    ${SHIP_X_VALUE}
+
+Double Click Company Cell
+    Wait Until Element Is Visible    ${COMPANY_CELL}    timeout=10s
+    Double Click Element    ${COMPANY_CELL}
+
+Right Click Order Row
+    Wait Until Element Is Visible    ${ORDER_ROW}    timeout=10s
+    Open Context Menu    ${ORDER_ROW}
 
 Order Total Text Should Be
     [Arguments]    ${arg_expected}
