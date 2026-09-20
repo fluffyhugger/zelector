@@ -188,7 +188,9 @@ say about.
 ## Scoring
 
 `src/core/volatility.ts` sorts identifiers into volatile (hashed by a build tool),
-utility (stable but meaningless, like Tailwind classes) and stable.
+utility (stable but meaningless, like Tailwind classes), state (`is-focused`,
+`ant-select-open` — a stable string that names a moment rather than an element,
+and is gone by the time a replay looks for it) and stable.
 `src/core/selector.ts` then emits candidates in order of preference: test attributes,
 `id`, `getByRole`, `getByLabel` / `name=`, `aria-label`, text, other semantic
 attributes, class combination, structural path.

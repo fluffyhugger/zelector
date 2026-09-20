@@ -37,6 +37,23 @@ const GENERATED_PATTERNS: Array<[RegExp, string]> = [
   [/\d{4,}$/,                           'ends in a long number — likely an index or record id'],
 ];
 
+/**
+ * Classes a component adds while it is in a state, and takes away again.
+ *
+ * `is-focused`, `ant-select-open`, `Mui-checked`. They are stable strings and
+ * they name nothing: a locator built from one matches only while the element
+ * happens to be in that state, which during a replay it is not — an Element
+ * Plus recording came out as `div.el-select__wrapper.is-focused` and failed on
+ * its first step, waiting ten seconds for a class that only exists once the
+ * select has been clicked. The thing it was supposed to click.
+ */
+const STATE_PATTERNS: RegExp[] = [
+  /^(?:is|has)-/,
+  /^Mui-/,
+  /(?:^|[-_])(?:open|opened|closed|active|inactive|selected|checked|focused|focus|hover|hovered|pressed|expanded|collapsed|disabled|enabled|loading|busy|dragging|invalid|error|current|visible|hidden|shown)$/i,
+  /--(?:open|active|selected|focused|checked|expanded|disabled|loading)(?:-|$)/i,
+];
+
 /** Tailwind/utility classes are stable but say nothing about *which* element this is. */
 const UTILITY_PATTERNS: RegExp[] = [
   /^(?:sm|md|lg|xl|2xl|hover|focus|active|group-hover|dark|first|last|odd|even):/,
@@ -67,6 +84,15 @@ export interface Verdict {
 export function classify(token: string): Verdict {
   for (const [re, reason] of GENERATED_PATTERNS) {
     if (re.test(token)) return { volatile: true, utility: false, reason };
+  }
+  for (const re of STATE_PATTERNS) {
+    if (re.test(token)) {
+      return {
+        volatile: false,
+        utility: true,
+        reason: 'state class — only there while the element is in that state',
+      };
+    }
   }
   for (const re of UTILITY_PATTERNS) {
     if (re.test(token)) return { volatile: false, utility: true, reason: 'utility/styling class' };
@@ -103,7 +129,10 @@ export function classify(token: string): Verdict {
  */
 export function isGeneratedId(id: string): boolean {
   return (
-    /^(?:mat|cdk|ng|mdc|mui|pn|pv|rc|react-select|downshift|headless)[-_][\w-]*\d/.test(id) ||
+    // `el-id-1024-3` is Element Plus: a namespace seed and a counter. It holds
+    // still across reloads of the same page, and moves the moment anything
+    // renders before it — which is what the flag is for.
+    /^(?:mat|cdk|ng|mdc|mui|pn|pv|rc|el|react-select|downshift|headless)[-_][\w-]*\d/.test(id) ||
     /^chakra-/.test(id)
   );
 }

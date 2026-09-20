@@ -47,7 +47,15 @@ const CASES = [
   ['autoCompleteMultipleInput', 'keep', 'DemoQA'],
   ['submitOrderButton', 'keep', 'camelCase, long'],
 
+  // State classes: stable strings that name a moment, not an element.
+  ['is-focused', 'utility', 'Element Plus, while the select has focus'],
+  ['ant-select-open', 'utility', 'Ant Design, while the list is open'],
+  ['Mui-checked', 'utility', 'MUI'],
+  ['tab--active', 'utility', 'a BEM modifier'],
+  ['has-error', 'utility', 'Bootstrap-flavoured'],
+
   ['login-form', 'keep', 'an ordinary class'],
+  ['el-select__wrapper', 'keep', 'Element Plus, the element itself'],
   ['inventory_item_name', 'keep', 'Saucedemo'],
   ['pay-btn', 'keep', 'an ordinary class'],
   ['css-grid-area', 'keep', 'starts with css- but is not a hash'],
@@ -63,6 +71,7 @@ const GENERATED_IDS = [
   ['cdk-overlay-3', true, 'Angular CDK'],
   ['react-select-2-option-0', true, 'react-select'],
   ['mui-42', true, 'MUI'],
+  ['el-id-1024-3', true, 'Element Plus'],
 
   ['login-email', false, 'the BugJam app'],
   ['bug-step-1', false, 'the BugJam app'],

@@ -113,6 +113,12 @@ def check_scoring(driver):
     expect('a[href="/users/1"]', 'css:a[href="/users/1"]',
            "two links read the same, so the text cannot be the locator")
 
+    # The id is a counter: usable, and flagged. The class beside it is a state.
+    expect("#el-id-1024-3", "id:el-id-1024-3", "a counter id, with nothing better on the element")
+    expect_fragile("#el-id-1024-3", True, "a counter moves when anything renders before it")
+    if any("is-focused" in c["value"] for c in (candidates(driver, "#el-id-1024-3") or [])):
+        problems.append("a state class was offered as a handle")
+
     expect("#dateOfBirthInput", "id:dateOfBirthInput",
            "a camelCase name reads as high entropy, and is still a name")
 
