@@ -57,7 +57,9 @@ for (const file of readdirSync(path.join(out, 'rf')).filter((f) => f.endsWith('.
   const start = text.indexOf('*** Test Cases ***');
   if (start === -1) continue;
   const body = text.slice(start);
-  const declared = [...text.matchAll(/^\$\{([A-Z_0-9]+)\}\s{2,}/gm)].map((m) => m[1]);
+  // Not [A-Z_0-9]: a variable named in the language of the page it came from
+  // would slip past the check entirely, which is the opposite of what it is for.
+  const declared = [...text.matchAll(/^\$\{([^}]+)\}\s{2,}/gm)].map((m) => m[1]);
   const unused = declared.filter((name) => !body.includes(`\${${name}}`));
   if (unused.length) orphans.push(`${file}: ${unused.join(', ')}`);
 }
