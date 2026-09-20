@@ -168,6 +168,7 @@ const stickyFlow: Recording = {
   startedAt: Date.UTC(2026, 8, 20),
   startUrl: 'https://example.com/form',
   name: 'Under A Sticky Footer',
+  window: { width: 1512, height: 944 },
   steps: [
     { kind: 'input', target: el('input', { id: 'address' }), value: 'somewhere',
       wait: { kind: 'none', timeoutS: 10, reason: '' } },

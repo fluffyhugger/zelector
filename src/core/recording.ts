@@ -140,6 +140,16 @@ export interface Recording {
   /** [Documentation] for the test case. Seeded with where and when. */
   doc?: string;
   /**
+   * The browser window the flow was recorded in.
+   *
+   * A page is a different page at a different width: data.go.th folds its
+   * navigation into a hamburger, and the link the recording clicks is then not
+   * visible at all. Maximize Browser Window does nothing in headless Chrome —
+   * which is where a suite runs in CI — so the size that was actually used is
+   * worth writing down.
+   */
+  window?: { width: number; height: number };
+  /**
    * Where the panel sits and whether it is rolled up. Not part of the test —
    * it rides along here because this is the one object that survives a
    * navigation, and a panel that jumps back over the page on every page load
@@ -284,6 +294,9 @@ class Keywords {
  * window immediately after the call, and at y=474 four hundred milliseconds
  * later. Asking for instant is what makes the next line safe without a Sleep,
  * which is the thing this whole tool exists to keep out of a suite.
+ *
+ * It waits for the element to stop moving first, because a bar is the place
+ * things animate into: see SETTLE_AND_CENTRE below.
  */
 function bringIntoView(kws: Keywords): string {
   return kws.add(
@@ -291,12 +304,56 @@ function bringIntoView(kws: Keywords): string {
     ['${arg_locator}'],
     [
       '    ${el}=    Get WebElement    ${arg_locator}',
-      '    Execute Javascript    '
-      + "arguments[0].scrollIntoView({block: 'center', behavior: 'instant'})"
-      + '    ARGUMENTS    ${el}',
+      '    Execute Async Javascript',
+      ...SETTLE_AND_CENTRE.map((line) => `    ...    ${line}`),
+      '    ...    ARGUMENTS    ${el}',
     ],
   );
 }
+
+/**
+ * Two frames with the same box, then centre it.
+ *
+ * Visible is not the same as finished. data.go.th's cookie banner passes
+ * `Wait Until Element Is Visible` while it is still scaling up — its button
+ * measured 29px wide at that moment and 132px four hundred milliseconds later,
+ * two hundred pixels to the right — so a click aimed the instant the wait
+ * returns lands where the button was on its way past. Watching for two
+ * identical frames is the page saying it has finished, rather than us guessing
+ * with a Sleep.
+ *
+ * SeleniumLibrary joins the code cells with nothing between them, so every
+ * line here ends in `;`, `{` or `}` — and none of them may contain two spaces
+ * in a row, which Robot reads as the end of a cell.
+ *
+ * Still has to mean still *and on screen*. A banner that slides up from below
+ * the fold is not moving yet while it waits for its own timer, and two
+ * identical frames of an element parked outside the window said "finished" for
+ * something that had not started — measured on a page built to the shape of
+ * data.go.th's, which then failed the click three times out of three.
+ *
+ * Capped at ten seconds of frames, the same timeout the readiness waits use: a
+ * page with something that never stops moving should fail with the message
+ * about the click rather than be held here for ever.
+ */
+const SETTLE_AND_CENTRE = [
+  'const el = arguments[0], done = arguments[arguments.length - 1];',
+  'let last = null, still = 0, frames = 0;',
+  'const inView = (r) => r.bottom > 0 && r.right > 0',
+  '&& r.top < innerHeight && r.left < innerWidth;',
+  'const tick = () => {',
+  'const r = el.getBoundingClientRect();',
+  'const now = [r.x, r.y, r.width, r.height].join();',
+  'still = now === last && inView(r) ? still + 1 : 0;',
+  'last = now;',
+  'if (still >= 2 || ++frames > 600) {',
+  "el.scrollIntoView({block: 'center', behavior: 'instant'});",
+  'return done(still >= 2);',
+  '}',
+  'requestAnimationFrame(tick);',
+  '};',
+  'requestAnimationFrame(tick);',
+];
 
 /** The frame variables for an element, declared once each in the suite. */
 function frameVarsFor(target: PickResult, syms: Symbols): string[] {
@@ -683,7 +740,14 @@ export function toRobotSuite(rec: Recording, options: SuiteOptions = {}): string
     // reports "element click intercepted" from a page that works by hand.
     // Measured on DemoQA: the same suite fails at a checkbox without this and
     // passes with it.
-    '    Maximize Browser Window',
+    //
+    // The recorded size beats maximising, and by a wider margin than it looks:
+    // Maximize Browser Window is a no-op in headless Chrome, which leaves the
+    // default 800x600 — narrow enough that data.go.th folds its navigation away
+    // and the suite waits ten seconds for a link that is not rendered.
+    rec.window
+      ? `    Set Window Size    ${Math.round(rec.window.width)}    ${Math.round(rec.window.height)}`
+      : '    Maximize Browser Window',
     ...calls,
     '    [Teardown]    Close Browser',
     '',

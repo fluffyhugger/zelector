@@ -60,7 +60,8 @@ comes to hang on something it never mentions:
 | a URL typed by hand | `Go To`, since nothing clicked led there |
 | double click, right click | `Double Click Element`, `Open Context Menu` — gestures the picker cannot offer for an element you have merely pointed at |
 | a multiple select | one step carrying every label, because `change` fires per option and a `<select multiple>` does not accumulate across calls |
-| a sticky header or ad footer | one `Bring Into View` keyword, called before each click on that page. WebDriver scrolls an element the smallest distance that puts it in the viewport, which parks it against the edge the bar is pinned to — the click is then refused with "Other element would receive the click" long after the wait has passed |
+| a sticky header or ad footer | one `Bring Into View` keyword, called before each click on that page: it waits for the element to hold the same box for two frames *on screen*, then centres it. WebDriver scrolls an element the smallest distance that puts it in the viewport, which parks it against the edge the bar is pinned to — and a banner that is still sliding is displayed long before it is where the click will land |
+| the window it was recorded in | `Set Window Size`, because `Maximize Browser Window` does nothing in headless Chrome, and a page is a different page at 800px: data.go.th folds its navigation into a hamburger and the recorded link is not rendered at all |
 
 The recording survives navigation: it lives in the service worker, and the new
 page picks it back up — which also turns the click that navigated into a

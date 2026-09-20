@@ -149,6 +149,7 @@ export class Recorder {
       steps: this.steps,
       name: this.name,
       doc: this.doc,
+      window: { width: window.outerWidth, height: window.outerHeight },
       ui: this.ui,
     };
   }
@@ -976,8 +977,8 @@ const ACTING_KEYS: Record<string, string> = {
  * too, and is not this.
  */
 function hasEdgeBar(): boolean {
-  const probe = (y: number): boolean =>
-    document.elementsFromPoint(Math.round(window.innerWidth / 2), y).some((el) => {
+  const pinned = (x: number, y: number): boolean =>
+    document.elementsFromPoint(Math.round(x), Math.round(y)).some((el) => {
       if (isNotPageContent(el)) return false;
       const position = getComputedStyle(el).position;
       if (position !== 'fixed' && position !== 'sticky') return false;
@@ -985,7 +986,14 @@ function hasEdgeBar(): boolean {
       return height >= MIN_BAR_HEIGHT && height <= window.innerHeight * 0.4;
     });
 
-  return probe(2) || probe(Math.max(2, window.innerHeight - 3));
+  const { innerWidth: w, innerHeight: h } = window;
+  // A band rather than a line, and three columns rather than one. data.go.th's
+  // cookie banner floats twenty pixels clear of the bottom and is narrower than
+  // the window, so a single probe at the centre of the edge went straight past
+  // it — and the step recorded on the banner's own button was not marked.
+  return [2, 24, 48, h - 3, h - 24, h - 48].some(
+    (y) => y > 0 && y < h && [0.25, 0.5, 0.75].some((fraction) => pinned(w * fraction, y)),
+  );
 }
 
 /** Shorter than this and nothing lands under it. */
