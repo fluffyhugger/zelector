@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 — unreleased
+## 0.3.0 — 20 September 2026
 
 Two days of recording real pages rather than reading the code. Every entry
 below is something a recording got wrong on a site that exists, and most of

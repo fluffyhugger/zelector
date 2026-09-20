@@ -1,6 +1,6 @@
 {
   "name": "zelector",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "The selector inspector DevTools should have been.",
   "author": "Sirapob Wuth (https://github.com/fluffyhugger)",
