@@ -8,6 +8,8 @@ ${Q}                    id:q
 ${AVATAR}               id:avatar
 # fastest for the browser to resolve
 ${MENU}                 id:menu
+# the file chosen while recording — put it beside this suite, or pass --variable FILE_PATH:/full/path
+${FILE_PATH}            ${CURDIR}${/}photo (1).png
 ${BROWSER}              chrome
 ${START_URL}            https://example.com/search
 
@@ -18,7 +20,6 @@ Search And Attach
     Maximize Browser Window
     Fill Q    shoes
     Press Keys    ${Q}    RETURN
-    # the file chosen while recording was photo (1).png
     Upload Avatar    ${FILE_PATH}
     Press Keys    ${MENU}    ESCAPE
     [Teardown]    Close Browser

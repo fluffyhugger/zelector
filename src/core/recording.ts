@@ -564,10 +564,20 @@ function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedS
   // where the file came from. So the placeholder stays, and the name goes in a
   // comment so whoever runs this knows what to point it at.
   if (action.keyword === 'Choose File' && step.value) {
-    return {
-      pre: [...pre, `    # the file chosen while recording was ${safeDoc(step.value)}`],
-      call: `    ${final}    ${action.argument ?? '${FILE_PATH}'}`,
-    };
+    // The browser never says where the file came from, so the path cannot be
+    // recorded — but the name can, and a declared variable makes the suite run
+    // as soon as that file sits beside it. Left undeclared, Robot stops with
+    // "Variable '${FILE_PATH}' not found", which tells the person reading it
+    // nothing about what is actually missing.
+    // ${CURDIR} is Robot's own: the directory this suite is in. Chrome refuses a
+    // relative path outright — "path is not absolute" — so a bare file name
+    // would trade one unhelpful failure for another.
+    const pathVar = syms.plain(
+      'FILE_PATH',
+      `\${CURDIR}\${/}${step.value}`,
+      'the file chosen while recording — put it beside this suite, or pass --variable FILE_PATH:/full/path',
+    );
+    return { pre, call: `    ${final}    ${v(pathVar)}` };
   }
 
   return { pre, call: `    ${final}${passed}` };
