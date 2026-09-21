@@ -3,7 +3,7 @@
 #   is the supported workaround.
 *** Variables ***
 # SeleniumLibrary has no shadow-DOM strategy — a dom: expression is the only way in
-${BUTTON}               dom:document.querySelector('sl-button[title="Press \\\\ to toggle"]').shadowRoot.querySelector('button[type="button"]')
+${BUTTON}               dom:document.querySelector('sl-button[title="Press \\\\ to toggle"]')?.shadowRoot?.querySelector('button[type="button"]')
 
 *** Keywords ***
 Button Text Should Be

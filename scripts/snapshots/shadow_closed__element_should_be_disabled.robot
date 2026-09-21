@@ -3,7 +3,7 @@
 #   is the supported workaround.
 *** Variables ***
 # SeleniumLibrary has no shadow-DOM strategy — a dom: expression is the only way in
-${PAY_NOW}              dom:document.querySelector('checkout-widget').shadowRoot.querySelector('button.pay-btn')
+${PAY_NOW}              dom:document.querySelector('checkout-widget')?.shadowRoot?.querySelector('button.pay-btn')
 
 *** Keywords ***
 Pay Now Should Be Disabled

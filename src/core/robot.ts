@@ -111,13 +111,19 @@ function baseLocator(result: PickResult): Omit<RobotLocator, 'frames'> {
   // walking one as though it were produces an expression that throws.
   const shadowHops = result.hops.filter((h) => h.type === 'shadow');
   if (shadowHops.length) {
+    // `?.` at every link, so a chain that no longer reaches fails the way every
+    // other locator does. Without it, a host that is not on the page throws
+    // "Cannot read properties of null" out of Wait Until Element Is Visible —
+    // an error about JavaScript internals, immediately, in place of the wait
+    // it was asked for. With it: "Element 'dom:…' not visible after 10
+    // seconds", which names the locator and gives the page its ten seconds.
     const chain = shadowHops
-      .map((h) => `querySelector('${jsLiteral(h.hostSelector)}').shadowRoot`)
-      .join('.');
+      .map((h) => `querySelector('${jsLiteral(h.hostSelector)}')?.shadowRoot`)
+      .join('?.');
     const leaf = cssFor(result);
     return {
       strategy: 'dom',
-      value: `dom:document.${chain}.querySelector('${jsLiteral(leaf)}')`,
+      value: `dom:document.${chain}?.querySelector('${jsLiteral(leaf)}')`,
       note: 'SeleniumLibrary has no shadow-DOM strategy — a dom: expression is the only way in',
       fragile: false,
     };

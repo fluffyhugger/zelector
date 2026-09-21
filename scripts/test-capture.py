@@ -653,7 +653,7 @@ CASES = [
         "shadow-escape.html", shadow_escape,
         lambda s: [
             (len(s) == 1, f"expected one step, got {len(s)}: {[x['locator'] for x in s]}"),
-            (s and s[0]["locator"].endswith(".shadowRoot.querySelector('#inner')"),
+            (s and s[0]["locator"].endswith("?.shadowRoot?.querySelector('#inner')"),
              f"the shadow chain came out as {s[0]['locator'] if s else None}"),
             # Eight backslashes in the file for the one the attribute has: Robot
             # unescapes to four, JavaScript to two, and the CSS parser reads

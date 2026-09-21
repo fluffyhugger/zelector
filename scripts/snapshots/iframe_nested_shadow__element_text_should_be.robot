@@ -4,7 +4,7 @@
 *** Variables ***
 ${OUTER_FRAME}          id:outer-frame
 # SeleniumLibrary has no shadow-DOM strategy — a dom: expression is the only way in
-${CONFIRM}              dom:document.querySelector('pay-widget').shadowRoot.querySelector('button.confirm')
+${CONFIRM}              dom:document.querySelector('pay-widget')?.shadowRoot?.querySelector('button.confirm')
 
 *** Keywords ***
 Confirm Text Should Be
