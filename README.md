@@ -1,5 +1,7 @@
 # Zelector
 
+![Fifteen seconds: a form being filled in while the panel writes the steps down, the file that comes out of it, and that file driving Chrome through the same form again and finishing green](docs/demo.gif)
+
 Record a flow, or pick any element — closed shadow roots included — and get
 selectors scored on how likely they are to survive the next deploy. A recording
 becomes a Robot Framework suite; a single pick copies as Robot Framework,

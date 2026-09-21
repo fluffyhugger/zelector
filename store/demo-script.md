@@ -2,7 +2,9 @@
 
 **Shot on 20 September.** `~/Desktop/record/zelector-demo.mp4` (1432×738),
 `zelector-demo-1280.mp4` for the store's video field, and
-`zelector-demo.gif` (5.1 MB, 900px) for the forum. The cut below is what
+`zelector-demo.gif` (5.1 MB, 900px) for the forum, and `docs/demo.gif`
+(1.4 MB, 760px, fifteen seconds) at the top of the README — the four moments
+that carry it, with the typing and the waiting cut out. The cut below is what
 was actually used; the shot list that follows it is how it was planned.
 
 | | |
