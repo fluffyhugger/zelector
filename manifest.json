@@ -56,7 +56,7 @@
   "commands": {
     "toggle-picker": {
       "suggested_key": {
-        "default": "Alt+Z",
+        "default": "Alt+Shift+Z",
         "mac": "Alt+Z"
       },
       "description": "Toggle element picker"

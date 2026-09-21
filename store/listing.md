@@ -99,6 +99,10 @@ THINGS THAT USUALLY GET IN THE WAY
 - Elements inside iframes get Select Frame and Unselect Frame around them,
   because Selenium has a current frame and a locator only ever addresses that.
 - Freeze the DOM to keep a hover menu or a popover open while you inspect it.
+- The picker's shortcut is Alt+Shift+Z on Windows and Option+Z on a Mac, because
+  Alt+Z on Windows belongs to the NVIDIA overlay and never reaches the browser.
+  Every shortcut can be rebound, and the popup shows the ones Chrome actually
+  assigned rather than the ones the manifest asked for. [0.3.0]
 - alert, confirm and prompt are recorded as Handle Alert and Input Text Into
   Alert. A dialog is browser chrome rather than DOM, so a recorder that misses
   one leaves a suite that hangs on it.

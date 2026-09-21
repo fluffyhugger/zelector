@@ -201,7 +201,11 @@ window.addEventListener(
   'keydown',
   (event) => {
     if (!event.altKey || event.ctrlKey || event.metaKey) return;
-    if (event.code === 'KeyZ' && !event.shiftKey) {
+    // Z with or without Shift: the suggested key is Alt+Z on macOS and
+    // Alt+Shift+Z everywhere else, because Alt+Z on Windows belongs to the
+    // NVIDIA overlay, which takes it before Chrome ever sees it. Confirmed on
+    // a machine that has one — the overlay opens and the picker does not.
+    if (event.code === 'KeyZ') {
       event.preventDefault();
       hud.hide();
       picker.toggle();

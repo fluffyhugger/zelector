@@ -104,15 +104,21 @@ npm run dev        # rebuilds dist/ on change
 | macOS | Windows / Linux | |
 |---|---|---|
 | `⌥` `⇧` `R` | `Alt` `Shift` `R` | start / stop recording |
-| `⌥` `Z` | `Alt` `Z` | toggle the picker |
+| `⌥` `Z` | `Alt` `Shift` `Z` | toggle the picker |
 | `⌥` `⇧` `F` | `Alt` `Shift` `F` | freeze the DOM |
 | `↑` `↓` | `↑` `↓` | walk the selection up/down the tree |
 | `Esc` | `Esc` | cancel |
 
+The picker is the one that differs, and for a measured reason: `Alt+Z` on
+Windows belongs to the NVIDIA overlay, which takes it before Chrome sees it —
+pressed on a machine with one, the overlay opens and the picker does not. The
+page listens for `Alt+Z` and `Alt+Shift+Z` either way, so whichever your Chrome
+assigned is the one that works.
+
 Matched on `event.code`, so keyboard layout doesn't matter. If a shortcut does
-nothing, something else holds the keys — on Windows `Alt+Z` is the NVIDIA overlay,
-which swallows it before Chrome sees it. Rebind at `chrome://extensions/shortcuts`;
-the popup marks any shortcut Chrome could not assign, and its buttons always work.
+nothing, something else holds the keys. Rebind at
+`chrome://extensions/shortcuts`; the popup marks any shortcut Chrome could not
+assign, and its buttons always work.
 
 There's also a Zelector tab in DevTools with a history of picks.
 
