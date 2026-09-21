@@ -128,6 +128,12 @@ def check_scoring(driver):
     # A counter id is usable and has to say so. Three libraries hand them out,
     # and the warning is the whole of what separates them from a real id: the
     # number is render order, and render order is not a name.
+    # Seven levels of nth-of-type, or the two ends and nothing about the
+    # middle. A div added anywhere between them breaks the first and not the
+    # second.
+    expect("#form-demo button", 'css:#form-demo button[type="submit"]',
+           "an anchored path says the two ends rather than every step between")
+
     # A hook is as durable as its value. This one carries a row id.
     expect_note('[data-test^="product-"]', "record id",
                 "a test hook with a database id in it is not environment-proof")

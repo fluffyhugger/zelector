@@ -14,6 +14,18 @@
   <li><span class="cell">three</span></li>
 </ul>
 
+<!-- Ant Design's form demo: the button carries nothing of its own, and seven
+     levels of markup sit between it and the id above. -->
+<div id="form-demo">
+  <section><div><form><div><div><div>
+    <button type="submit">Submit</button>
+  </div></div></div></form></div></section>
+</div>
+
+<!-- A second one elsewhere on the page, or `button[type="submit"]` would be
+     unique on its own and the path would never be reached. -->
+<form><button type="submit">Search</button></form>
+
 <!-- A test hook with a row id in it: the attribute is durable, the value
      belongs to one seeded database. -->
 <a data-test="product-01M2ZB0KTWNEAT0VYMPH5FYPDY" href="/product/1">Claw Hammer</a>

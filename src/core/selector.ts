@@ -198,7 +198,11 @@ function buildPathSelector(el: Element): SelectorCandidate {
     depth++;
   }
 
-  const value = parts.join(' > ');
+  // A chain of seven tags to reach a submit button, when `#form-demo-basic
+  // button[type="submit"]` says the same thing and survives a div being added
+  // anywhere along the way. Recorded on Ant Design's form page, where the
+  // button carries nothing of its own and the demo around it carries an id.
+  const value = (anchored && parts.length > 2 ? shortcut(el, parts[0]!) : null) ?? parts.join(' > ');
   const indexed = value.includes(':nth-of-type');
   const notes = [
     '⚠ structural — breaks whenever the markup is reordered',
@@ -216,6 +220,26 @@ function buildPathSelector(el: Element): SelectorCandidate {
     score: Math.max(2, BASE_SCORE.path - depth * 2 + (anchored ? 12 : 0) - (indexed ? 6 : 0)),
     notes,
   };
+}
+
+/**
+ * `anchor tag[attr]` when that reaches the element on its own.
+ *
+ * A descendant selector does not care what sits between the two ends, which is
+ * the whole of what makes a structural path fragile. Only tried from an anchor,
+ * because unanchored it would be a selector against the whole document.
+ */
+function shortcut(el: Element, anchor: string): string | null {
+  const tag = el.tagName.toLowerCase();
+  for (const attr of ['type', 'name', 'role', 'href', 'placeholder', 'alt']) {
+    const value = el.getAttribute(attr);
+    if (!value || value.length > 60 || isUseless(value)) continue;
+    const scoped = `${anchor} ${tag}[${attr}=${quote(value)}]`;
+    if (isUnique(el, scoped)) return scoped;
+  }
+  // The tag alone, when the anchor holds exactly one of them.
+  const scoped = `${anchor} ${tag}`;
+  return isUnique(el, scoped) ? scoped : null;
 }
 
 /** A stable hook on an ancestor we can root the path at. */
