@@ -495,9 +495,14 @@ function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedS
   // Press Keys takes the locator inline; there is no keyword worth defining for
   // "press Enter here".
   if (step.kind === 'key') {
+    // Escaped like any other recorded value now that a key step can carry
+    // typed text: an editor recording of " buy milk" lost its leading space to
+    // the cell, and the replay wrote `Notes:buy milk`. A key name has nothing
+    // in it to escape, so RETURN and ESCAPE come out as themselves.
     return {
       pre: wait ? [wait] : [],
-      call: `    Press Keys    ${v(syms.forTarget(step.target))}    ${step.value ?? 'RETURN'}`,
+      call: `    Press Keys    ${v(syms.forTarget(step.target))}    ${
+        step.value === undefined ? 'RETURN' : safeValue(step.value)}`,
     };
   }
 

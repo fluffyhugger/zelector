@@ -70,7 +70,14 @@ export class Recorder {
    * step — the flow grows a phantom click every time you add an assertion.
    */
   private suspended = false;
-  private typing: { el: Element; target: PickResult; value: string } | null = null;
+  private typing: {
+    el: Element;
+    target: PickResult;
+    value: string;
+    /** A contenteditable holds text rather than a value, so what was typed is
+     *  accumulated from the events rather than read back off the element. */
+    editable?: boolean;
+  } | null = null;
   private typingTimer = 0;
   /** A settled page change waiting for the step it should inform. */
   private pending: { forIndex: number; change: PageChange } | null = null;
@@ -495,6 +502,16 @@ export class Recorder {
     // and dropping that click left the recording clicking a day in a calendar
     // that had never been opened. So the click is kept, and thrown away later
     // if typing into the same field turns out to follow it.
+    // An editor's own element is usually a <body> or a <div>, which the
+    // structural rule below drops on the floor.
+    const editable = editableHost(el);
+    if (editable) {
+      this.push({ kind: 'click', target: describe(editable), keyword: 'Click Element' });
+      const aimed = this.steps[this.steps.length - 1];
+      this.aiming = aimed ? { id: aimed.id, el: editable } : null;
+      return;
+    }
+
     if (isTextEntry(el)) {
       // A combobox's input is often not clickable in its own right; the control
       // drawn around it is. The field is still what the typing belongs to, so
@@ -531,6 +548,18 @@ export class Recorder {
   private onInput = (event: Event): void => {
     if (!this.capturing || isNotPageContent(event.target)) return;
     const el = event.target;
+
+    // A rich text editor is a contenteditable, not a field: TinyMCE, CKEditor,
+    // Quill and ProseMirror all put one on the page and none of them fires an
+    // input event this handler used to accept. Recording one produced a suite
+    // with nothing in it at all — no error, no step, no sign anything had
+    // happened.
+    const editable = el instanceof Element ? editableHost(el) : null;
+    if (editable) {
+      this.typeIntoEditor(editable, event);
+      return;
+    }
+
     if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement)) return;
     // Only the ones you actually type into. A file input fires input events too,
     // and its value is the browser's `C:\fakepath\name` placeholder — which is
@@ -704,6 +733,28 @@ export class Recorder {
     return moved <= 4 && pressed.el.isConnected ? pressed.el : null;
   }
 
+  /**
+   * What was typed into an editor, taken from the events rather than the DOM.
+   *
+   * The element's text is everything it already held, and replaying that would
+   * type the document back into itself. `InputEvent.data` is the keystroke, and
+   * the keystrokes are what a replay has to reproduce.
+   */
+  private typeIntoEditor(host: Element, event: Event): void {
+    const typed = event instanceof InputEvent && event.inputType === 'insertText'
+      ? event.data ?? ''
+      : '';
+    if (!typed) return;
+
+    if (this.typing && this.typing.el !== host) this.flushTyping();
+    this.typing = this.typing?.el === host
+      ? { ...this.typing, value: this.typing.value + typed }
+      : { el: host, target: describe(host), value: typed, editable: true };
+
+    clearTimeout(this.typingTimer);
+    this.typingTimer = window.setTimeout(() => this.flushTyping(), TYPING_IDLE_MS);
+  }
+
   private onFocusOut = (): void => {
     if (this.capturing) this.flushTyping();
   };
@@ -737,7 +788,13 @@ export class Recorder {
       this.steps.pop();
       this.aiming = null;
     }
-    this.push({ kind: 'input', target: typing.target, value: typing.value });
+    // Input Text refuses a contenteditable — "Element must be user-editable" —
+    // so what replays the typing is the same keyword a recorded Enter uses.
+    this.push({
+      kind: typing.editable ? 'key' : 'input',
+      target: typing.target,
+      value: typing.value,
+    });
   }
 
   // ── Step construction ──────────────────────────────────────────────────────
@@ -1066,6 +1123,23 @@ const MIN_BAR_HEIGHT = 24;
 function onlyTextEntryInside(el: Element): Element | undefined {
   const fields = [...el.querySelectorAll('input,textarea')].filter(isTextEntry);
   return fields.length === 1 ? fields[0] : undefined;
+}
+
+/**
+ * The element an editor edits, if this is inside one.
+ *
+ * The outermost editable, not the nearest: ProseMirror and Quill nest editable
+ * nodes, and the one with a locator worth writing down is the root.
+ */
+function editableHost(el: Element): Element | null {
+  if (!(el instanceof HTMLElement) || !el.isContentEditable) return null;
+  let host: HTMLElement = el;
+  let parent = host.parentElement;
+  while (parent instanceof HTMLElement && parent.isContentEditable) {
+    host = parent;
+    parent = host.parentElement;
+  }
+  return host;
 }
 
 /** Something you type into, rather than press. */

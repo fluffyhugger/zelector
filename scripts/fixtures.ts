@@ -199,6 +199,10 @@ const keyFlow: Recording = {
       wait: { kind: 'none', timeoutS: 10, reason: '' } },
     { kind: 'click', target: el('input', { id: 'avatar', type: 'file' }), value: 'photo (1).png',
       wait: { kind: 'none', timeoutS: 10, reason: '' } },
+    // A contenteditable: the keys are typed text, and the leading space has to
+    // survive a cell that drops the spaces at either end of itself.
+    { kind: 'key', target: el('div', { class: 'ProseMirror', contenteditable: 'true' }, 'Hello ProseMirror! This is'), value: ' buy  milk',
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
     { kind: 'key', target: el('div', { id: 'menu' }), value: 'ESCAPE',
       wait: { kind: 'none', timeoutS: 10, reason: '' } },
   ].map(step),

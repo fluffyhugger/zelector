@@ -6,6 +6,8 @@ Library           SeleniumLibrary
 ${Q}                    id:q
 # fastest for the browser to resolve
 ${AVATAR}               id:avatar
+# no stable attribute found — consider asking for a data-testid
+${PROSEMIRROR}          css:div
 # fastest for the browser to resolve
 ${MENU}                 id:menu
 # the file chosen while recording — put it beside this suite, or pass --variable FILE_PATH:/full/path
@@ -21,6 +23,7 @@ Search And Attach
     Fill Q    shoes
     Press Keys    ${Q}    RETURN
     Upload Avatar    ${FILE_PATH}
+    Press Keys    ${PROSEMIRROR}    \ buy\ \ milk
     Press Keys    ${MENU}    ESCAPE
     [Teardown]    Close Browser
 

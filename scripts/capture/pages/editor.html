@@ -1,0 +1,17 @@
+<!doctype html><meta charset="utf-8"><title>editor</title><link rel=stylesheet href=_base.css>
+<!-- A contenteditable, which is what TinyMCE, CKEditor, Quill and ProseMirror
+     all put on the page. It fires input events like a field and is not one:
+     it has no value, Input Text refuses it, and the recorder used to ignore
+     both the click that focuses it and every keystroke after — a recording of
+     a page like this came out empty, with nothing to say it had. -->
+<div id="note" contenteditable="true"
+     style="width:420px;min-height:90px;padding:12px;border:1px solid #999">Notes:</div>
+<button id="save" style="margin-top:12px;padding:8px 14px">Save</button>
+<div id="result" style="margin-top:10px"></div>
+<script>
+  document.getElementById('save').addEventListener('click', () => {
+    document.getElementById('result').textContent =
+      document.getElementById('note').textContent.trim();
+  });
+</script>
+<script src="harness.js"></script>

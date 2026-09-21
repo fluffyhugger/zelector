@@ -380,6 +380,15 @@ def shadow_escape(driver):
     time.sleep(1.2)
 
 
+def editor(driver):
+    note = driver.find_element(By.ID, "note")
+    note.click()
+    note.send_keys(" buy milk")
+    time.sleep(1.2)
+    driver.find_element(By.ID, "save").click()
+    time.sleep(1.0)
+
+
 def container(driver):
     form = driver.find_element(By.ID, "userForm")
     ActionChains(driver).move_to_element_with_offset(form, 5, 5).click().perform()
@@ -651,6 +660,22 @@ CASES = [
             # those two as the backslash itself. Same ladder for each quote.
             (s and 'title="Press \\\\ to \\"toggle\\""' in css_behind(s[0]["locator"]),
              f"what the CSS parser would see: {css_behind(s[0]['locator']) if s else None}"),
+        ],
+    ),
+    Case(
+        "typing into an editor is typing, even without a field",
+        "editor.html", editor,
+        lambda s: [
+            (len(s) == 2, f"expected two steps, got {len(s)}: {[x['keyword'] for x in s]}"),
+            # Input Text refuses a contenteditable, so the keystrokes replay the
+            # way a recorded Enter does.
+            (s and s[0]["keyword"] == "Press Keys", f"keyword was {s[0]['keyword'] if s else None}"),
+            (s and s[0]["locator"] == "id:note", f"step targeted {s[0]['locator'] if s else None}"),
+            # What was typed, not what the editor already held.
+            (s and s[0].get("value") == " buy milk",
+             f"the typing came out as {s[0].get('value') if s else None!r}"),
+            (len(s) > 1 and s[1]["locator"] == "id:save",
+             f"the save came out as {s[1]['locator'] if len(s) > 1 else None}"),
         ],
     ),
     Case(

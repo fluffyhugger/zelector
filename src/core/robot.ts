@@ -477,8 +477,10 @@ export function variableName(result: PickResult): string {
     a['name'] ??
     a['aria-label'] ??
     // A <select>'s textContent is every option run together, which names it
-    // ${JANUARYFEBRUARYMARCH…DECEMBER}. Its options are not its identity.
-    (result.tagName === 'select' ? undefined : textName(result.text)) ??
+    // ${JANUARYFEBRUARYMARCH…DECEMBER}. Its options are not its identity, and
+    // neither is an editor's text: ProseMirror's demo came out as
+    // ${HELLO_PROSEMIRRORTHIS_IS}, which is a name for what someone typed once.
+    (result.tagName === 'select' || isEditable(a) ? undefined : textName(result.text)) ??
     // A spinner has none of the above but usually says what it is in a class.
     // ${LOADING_SPINNER} beats ${DIV} in a suite someone has to read.
     identifyingClass(a['class']) ??
@@ -507,6 +509,10 @@ export function variableName(result: PickResult): string {
 
   return cleaned || `${result.tagName.toUpperCase()}_TARGET`;
 }
+
+/** Is this the thing an editor edits? */
+const isEditable = (attributes: Record<string, string>): boolean =>
+  attributes['contenteditable'] === '' || attributes['contenteditable'] === 'true';
 
 /** The first few words of an element's text, if that is short enough to be a name. */
 function textName(text: string): string | undefined {
