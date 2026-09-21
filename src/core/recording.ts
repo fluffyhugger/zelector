@@ -127,6 +127,13 @@ export interface RecordedStep {
   dialog?: DialogStep;
   /** `drag` steps only — where it was let go. */
   dropTarget?: PickResult;
+  /**
+   * The browser ran the drag itself (`draggable="true"`) rather than the page
+   * following the pointer. Selenium's Drag And Drop is pointer actions, and
+   * Chrome does not turn those into a native drag — so this one replays through
+   * the events the browser would have fired.
+   */
+  nativeDrag?: boolean;
   wait: WaitSpec;
   at: number;
 }
@@ -282,6 +289,45 @@ class Keywords {
 }
 
 // ── Rendering ────────────────────────────────────────────────────────────────
+
+/**
+ * The drag the browser would have run, for a page that asked it to.
+ *
+ * `Drag And Drop` is pointer actions, and Chrome does not turn those into a
+ * native drag: a recording of `draggable="true"` replays as a press and a
+ * release the page never hears about. Dispatching the events is the workaround
+ * every Selenium user of such a page ends up writing, and it is worth writing
+ * for them.
+ *
+ * Only for a drag the browser ran. A sortable list that follows the pointer
+ * gets Drag And Drop, which is what it responds to.
+ */
+function dragTheWayTheBrowserDoes(kws: Keywords): string {
+  return kws.add(
+    'Drag And Drop (Native)',
+    ['${arg_source}', '${arg_target}'],
+    [
+      '    ${src}=    Get WebElement    ${arg_source}',
+      '    ${dst}=    Get WebElement    ${arg_target}',
+      '    Execute Javascript',
+      ...NATIVE_DRAG.map((line) => `    ...    ${line}`),
+      '    ...    ARGUMENTS    ${src}    ${dst}',
+    ],
+  );
+}
+
+/** Joined with nothing between the cells, so every line ends in `;` or `}`. */
+const NATIVE_DRAG = [
+  'const [src, dst] = arguments;',
+  'const dt = new DataTransfer();',
+  'const fire = (el, type) => el.dispatchEvent(',
+  'new DragEvent(type, {bubbles: true, cancelable: true, dataTransfer: dt}));',
+  "fire(src, 'dragstart');",
+  "fire(dst, 'dragenter');",
+  "fire(dst, 'dragover');",
+  "fire(dst, 'drop');",
+  "fire(src, 'dragend');",
+];
 
 /**
  * One keyword for "put this where a click can reach it", added only to suites
@@ -483,12 +529,15 @@ function renderStep(step: RecordedStep, syms: Symbols, kws: Keywords): RenderedS
   // to be about.
   if (step.kind === 'drag' && step.dropTarget) {
     const source = syms.forTarget(step.target);
+    const onto = syms.forTarget(step.dropTarget);
     return {
       pre: [
         ...(wait ? [wait] : []),
         ...(step.underBar ? [`    ${bringIntoView(kws)}    ${v(source)}`] : []),
       ],
-      call: `    Drag And Drop    ${v(source)}    ${v(syms.forTarget(step.dropTarget))}`,
+      call: step.nativeDrag
+        ? `    ${dragTheWayTheBrowserDoes(kws)}    ${v(source)}    ${v(onto)}`
+        : `    Drag And Drop    ${v(source)}    ${v(onto)}`,
     };
   }
 
@@ -673,7 +722,15 @@ export interface SuiteOptions {
  * heading, not a paragraph.
  */
 function safeName(raw: string, fallback: string): string {
-  const cleaned = raw.replace(/[\r\n]+/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  const cleaned = raw
+    .replace(/[\r\n]+/g, ' ')
+    .replace(/\s{2,}/g, ' ')
+    .trim()
+    // A page title carries its site name behind a separator, and the recorder
+    // takes the title. practicesoftwaretesting's gave the test case the name
+    // "Practice Software Testing - Toolshop -", which reads like something was
+    // lost rather than trimmed.
+    .replace(/^[\s\-–—|:•·]+|[\s\-–—|:•·]+$/g, '');
   return cleaned || fallback;
 }
 

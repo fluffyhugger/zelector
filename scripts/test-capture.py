@@ -389,6 +389,22 @@ def editor(driver):
     time.sleep(1.0)
 
 
+def native_drag(driver):
+    # WebDriver's pointer actions do not drive a native drag in Chrome, so the
+    # events are dispatched the way the browser fires them. This is what the
+    # page sees either way.
+    driver.execute_script("""
+      const src = document.getElementById('card-1');
+      const dst = document.getElementById('done');
+      const dt = new DataTransfer();
+      const fire = (el, type) => el.dispatchEvent(
+        new DragEvent(type, {bubbles: true, cancelable: true, dataTransfer: dt}));
+      fire(src, 'dragstart'); fire(dst, 'dragenter'); fire(dst, 'dragover');
+      fire(dst, 'drop'); fire(src, 'dragend');
+    """)
+    time.sleep(1.2)
+
+
 def container(driver):
     form = driver.find_element(By.ID, "userForm")
     ActionChains(driver).move_to_element_with_offset(form, 5, 5).click().perform()
@@ -676,6 +692,17 @@ CASES = [
              f"the typing came out as {s[0].get('value') if s else None!r}"),
             (len(s) > 1 and s[1]["locator"] == "id:save",
              f"the save came out as {s[1]['locator'] if len(s) > 1 else None}"),
+        ],
+    ),
+    Case(
+        "a drag the browser runs is still a drag",
+        "native-drag.html", native_drag,
+        lambda s: [
+            (len(s) == 1, f"expected one step, got {len(s)}: {[x['keyword'] for x in s]}"),
+            (s and s[0]["keyword"] == "Drag And Drop", f"keyword was {s[0]['keyword'] if s else None}"),
+            (s and s[0]["locator"] == "id:card-1", f"source was {s[0]['locator'] if s else None}"),
+            (s and s[0].get("dropTarget") == "id:done",
+             f"target was {s[0].get('dropTarget') if s else None}"),
         ],
     ),
     Case(

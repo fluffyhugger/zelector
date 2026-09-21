@@ -267,6 +267,9 @@ export class Recorder {
     window.addEventListener('keydown', this.onKeyDown, true);
     window.addEventListener('click', this.onClick, true);
     window.addEventListener('dblclick', this.onDoubleClick, true);
+    window.addEventListener('dragstart', this.onDragStart, true);
+    window.addEventListener('drop', this.onDrop, true);
+    window.addEventListener('dragend', this.onDragEnd, true);
     window.addEventListener('contextmenu', this.onContextMenu, true);
     window.addEventListener('input', this.onInput, true);
     window.addEventListener('change', this.onChange, true);
@@ -289,6 +292,9 @@ export class Recorder {
     window.removeEventListener('keydown', this.onKeyDown, true);
     window.removeEventListener('click', this.onClick, true);
     window.removeEventListener('dblclick', this.onDoubleClick, true);
+    window.removeEventListener('dragstart', this.onDragStart, true);
+    window.removeEventListener('drop', this.onDrop, true);
+    window.removeEventListener('dragend', this.onDragEnd, true);
     window.removeEventListener('contextmenu', this.onContextMenu, true);
     window.removeEventListener('input', this.onInput, true);
     window.removeEventListener('change', this.onChange, true);
@@ -691,6 +697,42 @@ export class Recorder {
     this.push({ kind: 'click', target: describe(el), keyword: 'Double Click Element' });
   };
 
+  /** What the browser is dragging, between dragstart and drop. */
+  private dragging: Element | null = null;
+
+  /**
+   * A drag the browser runs itself.
+   *
+   * `draggable="true"` hands the gesture to the browser's own drag machinery
+   * and pointer events stop arriving for the duration, so the pointer-driven
+   * path sees a press that never comes up and records nothing at all. Every
+   * kanban board and half the file dropzones on the web work this way.
+   */
+  private onDragStart = (event: DragEvent): void => {
+    if (!this.capturing || isNotPageContent(event.target)) return;
+    this.dragging = event.target instanceof Element ? resolveTarget(event.target) : null;
+  };
+
+  private onDrop = (event: DragEvent): void => {
+    if (!this.capturing || !this.dragging || isNotPageContent(event.target)) return;
+    const landed = event.target instanceof Element ? resolveTarget(event.target) : null;
+    const source = this.dragging;
+    this.dragging = null;
+    if (!landed || landed === source) return;
+
+    this.dragged = Date.now();   // the click that follows belongs to this gesture
+    this.push({
+      kind: 'drag',
+      target: describe(source),
+      dropTarget: describe(landed),
+      nativeDrag: true,
+    });
+  };
+
+  private onDragEnd = (): void => {
+    this.dragging = null;
+  };
+
   /**
    * A right click, which no other event reports.
    *
@@ -829,6 +871,7 @@ export class Recorder {
     keyword?: string;
     dialog?: DialogStep;
     dropTarget?: PickResult;
+    nativeDrag?: boolean;
   }): void {
     // Asked here, once per step, while the page still looks the way it did
     // when the person acted: a cookie bar that is dismissed later was there
@@ -878,6 +921,7 @@ export class Recorder {
       ...(partial.keyword !== undefined ? { keyword: partial.keyword } : {}),
       ...(partial.dialog !== undefined ? { dialog: partial.dialog } : {}),
       ...(partial.dropTarget !== undefined ? { dropTarget: partial.dropTarget } : {}),
+      ...(partial.nativeDrag ? { nativeDrag: true } : {}),
       wait: change ? inferWait(change, partial.target) : provisionalWait(partial.target),
       at: Date.now(),
     };

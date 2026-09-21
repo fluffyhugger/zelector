@@ -56,6 +56,7 @@ comes to hang on something it never mentions:
 | `alert` / `confirm` / `prompt` | `Handle Alert`, `Input Text Into Alert` — browser chrome, so there is no element to pick and no event to listen for |
 | Enter, Escape | `Press Keys` — a search submitted from the keyboard replays as one |
 | dragging | `Drag And Drop`, both ends, rather than a click on whichever the browser fired one over |
+| a drag the browser runs | `draggable="true"` hands the gesture to the browser and pointer events stop arriving, so a kanban board recorded as nothing at all. It comes out as a keyword that dispatches the drag events, because Chrome does not turn Selenium's pointer actions into a native drag either |
 | hover menus | `Mouse Over`, whether the menu is opened by script or by a `:hover` rule that moves no nodes at all |
 | file pickers | `Choose File`, with the chosen name in a comment — the browser will not say where the file came from |
 | a URL typed by hand | `Go To`, since nothing clicked led there |
@@ -178,7 +179,7 @@ Five passes, each for a kind of mistake the others let through:
   it uses.
 - **snapshots** — the generated suites, committed. Output that is valid and
   quietly worse shows up as a diff rather than as a surprise.
-- **capture** — twenty-six recordings driven through WebDriver. Every one is a
+- **capture** — twenty-eight recordings driven through WebDriver. Every one is a
   bug that happened: a pause mid-typing, a checkbox under its label, a menu
   that opens on mousedown, another extension's markup, a list portalled to
   `<body>` above an id that is regenerated on every render, a calendar credited

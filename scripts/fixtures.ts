@@ -72,7 +72,9 @@ const flow: Recording = {
   startedAt: Date.UTC(2026, 8, 14),
   startUrl: 'https://shop.example.com/login',
   // Both carry things a cell would otherwise eat: a run of spaces and a ${.
-  name: '  Order Is Shipped   After Checkout  ',
+  // Whitespace at both ends, a run in the middle, and the separator a page
+  // title leaves behind when the site name is trimmed off it.
+  name: '  Order Is Shipped   After Checkout - ',
   doc: 'Signs in, filters to shipped orders and checks the  total against ${EXPECTED}.',
   steps: [
     { kind: 'input', target: el('input', { id: 'username', type: 'text' }), value: 'somebody@example.com',
@@ -168,6 +170,22 @@ writeFileSync('rf/_recorded_dialogs.robot', toRobotSuite(dialogFlow));
 
 // A page that pins a bar to an edge: the clicks need putting where a click can
 // reach them, and the helper is defined once however many steps ask for it.
+// A drag the browser ran itself, which replays through the events rather than
+// through pointer actions.
+const nativeDragFlow: Recording = {
+  active: false,
+  startedAt: Date.UTC(2026, 8, 21),
+  startUrl: 'https://example.com/board',
+  name: 'Move A Card',
+  steps: [
+    { kind: 'drag', target: el('div', { id: 'card-1' }, 'Write tests'),
+      dropTarget: el('div', { id: 'done' }), nativeDrag: true,
+      wait: { kind: 'none', timeoutS: 10, reason: '' } },
+  ].map(step),
+};
+
+writeFileSync('rf/_recorded_native_drag.robot', toRobotSuite(nativeDragFlow));
+
 const stickyFlow: Recording = {
   active: false,
   startedAt: Date.UTC(2026, 8, 20),

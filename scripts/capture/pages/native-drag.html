@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8"><title>native drag</title><link rel=stylesheet href=_base.css>
+<!-- draggable="true" hands the gesture to the browser, and pointer events stop
+     arriving while it runs — the pointer-driven path sees a press that never
+     comes up and records nothing. Every kanban board works this way. -->
+<style>
+  .col { display:inline-block; vertical-align:top; width:180px; min-height:110px;
+         border:2px dashed #aaa; padding:10px; margin-right:20px; }
+  .card { padding:10px; background:#dde; cursor:grab; }
+</style>
+<div class="col" id="todo"><div class="card" id="card-1" draggable="true">Write tests</div></div>
+<div class="col" id="done"></div>
+<div id="result" style="margin-top:12px"></div>
+<script>
+  const card = document.getElementById('card-1');
+  card.addEventListener('dragstart', (e) => e.dataTransfer.setData('text/plain', card.id));
+  for (const col of document.querySelectorAll('.col')) {
+    col.addEventListener('dragover', (e) => e.preventDefault());
+    col.addEventListener('drop', (e) => {
+      e.preventDefault();
+      col.appendChild(card);
+      document.getElementById('result').textContent = 'dropped on ' + col.id;
+    });
+  }
+</script>
+<script src="harness.js"></script>
