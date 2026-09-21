@@ -11,11 +11,18 @@ was actually used; the shot list that follows it is how it was planned.
 |---|---|
 | 0:00–0:03 | the form, `⌥⇧R`, the panel |
 | 0:03–0:15 | filling it in at 3.2× |
-| 0:15–0:19 | the step list, each wait with its reason — caption: *every wait, and why it is there* |
+| 0:15–0:19 | the step list, each wait with its reason |
 | 0:19–0:23 | the generated suite in the preview pane |
 | 0:23–0:25 | `demosite (8).robot`, 9.9 KB, downloaded |
-| 0:25–0:32 | the terminal, then Chrome opening itself and filling the form again — caption: *run as downloaded, nothing edited* |
-| 0:32–0:35 | `1 test, 1 passed, 0 failed`, zoomed and held |
+| 0:25–0:32 | the terminal, then Chrome opening itself and filling the form again |
+| 0:32–0:35 | `1 test, 1 passed, 0 failed`, zoomed and held — caption: *nothing in this file was edited* |
+
+Two captions were cut after watching it back. "every wait, and why it is
+there" floated over a list that already gives the reason for each one, and
+"run as downloaded, nothing edited" arrived while Chrome was filling the form,
+before anyone had thought to doubt it. What is left is the one claim the
+picture cannot make: a viewer has no way of knowing the file was not touched
+between the download and the run, so that line says it, once, over the green.
 
 Cut from the first take: fifteen seconds of Finder, which is a person
 looking for a file rather than anything the tool does — and a Downloads
