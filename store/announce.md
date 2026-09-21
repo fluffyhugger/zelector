@@ -66,6 +66,10 @@ them were things every test and every panel in the UI claimed already worked.
 
 <!-- store link -->
 
+<!-- the GIF goes here: ~/Desktop/record/zelector-demo.gif, 5.1 MB. It plays in
+     the thread, which a YouTube link does not. The same cut is on YouTube for
+     the store listing's video field. -->
+
 Source: https://github.com/fluffyhugger/zelector
 
 I would rather hear where it fails than that it is a nice idea. If you record

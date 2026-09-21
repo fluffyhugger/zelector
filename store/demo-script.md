@@ -1,5 +1,27 @@
 # The 35 seconds
 
+**Shot on 20 September.** `~/Desktop/record/zelector-demo.mp4` (1432×738),
+`zelector-demo-1280.mp4` for the store's video field, and
+`zelector-demo.gif` (5.1 MB, 900px) for the forum. The cut below is what
+was actually used; the shot list that follows it is how it was planned.
+
+| | |
+|---|---|
+| 0:00–0:03 | the form, `⌥⇧R`, the panel |
+| 0:03–0:15 | filling it in at 3.2× |
+| 0:15–0:19 | the step list, each wait with its reason — caption: *every wait, and why it is there* |
+| 0:19–0:23 | the generated suite in the preview pane |
+| 0:23–0:25 | `demosite (8).robot`, 9.9 KB, downloaded |
+| 0:25–0:32 | the terminal, then Chrome opening itself and filling the form again — caption: *run as downloaded, nothing edited* |
+| 0:32–0:35 | `1 test, 1 passed, 0 failed`, zoomed and held |
+
+Cut from the first take: fifteen seconds of Finder, which is a person
+looking for a file rather than anything the tool does — and a Downloads
+list with unrelated filenames in it.
+
+---
+
+
 What to film, in what order, and why. The whole point is the last five
 seconds: a suite nobody edited, running.
 
