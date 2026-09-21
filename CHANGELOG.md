@@ -42,6 +42,19 @@ them were found by running the suite that came out rather than by reading it.
   enough that a responsive site folds its navigation away and the suite waits
   for a link that was never rendered.
 
+### The shape of the suite
+
+- The browser opens in `Suite Setup` and closes in `Suite Teardown`, so the
+  test case is the flow and nothing else. A suite with one test reads the same
+  either way; the one somebody adds a second test to does not.
+- `[Tags]    recorded    <site>` — what a team excludes from a curated run, and
+  what they select when one site is the one being worked on.
+- The setup waits for the page to stop changing before the first step. A React
+  page hydrates after it loads and replaces the nodes it just rendered: the
+  first step finds its element, reaches for it, and gets
+  StaleElementReferenceException. Two runs in three on Ant Design's form page,
+  and four out of four after.
+
 ### Recorded for the first time
 
 - Double click and right click — `Double Click Element`, `Open Context Menu`.

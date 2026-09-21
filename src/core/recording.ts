@@ -735,6 +735,52 @@ function safeName(raw: string, fallback: string): string {
 }
 
 /**
+ * Half a second with the DOM untouched, or five seconds, whichever comes first.
+ *
+ * Capped because a page with a carousel or a polling badge never goes quiet,
+ * and a suite that waits for that is worse than one that starts a little early.
+ *
+ * Three seconds rather than five: SeleniumLibrary gives an async script five
+ * before it gives up, and a cap that races that turns "the page is busy" into
+ * a suite that fails in its own setup. Ant Design's docs never go quiet, and
+ * ran the cap every time.
+ */
+const PAGE_SETTLES = [
+  'const done = arguments[arguments.length - 1];',
+  'let timer = 0;',
+  'const finish = () => {',
+  'observer.disconnect();',
+  'clearTimeout(timer);',
+  'clearTimeout(cap);',
+  'done(true);',
+  '};',
+  'const observer = new MutationObserver(() => {',
+  'clearTimeout(timer);',
+  'timer = setTimeout(finish, 500);',
+  '});',
+  'observer.observe(document.documentElement, {childList: true, subtree: true, attributes: true});',
+  'timer = setTimeout(finish, 500);',
+  'const cap = setTimeout(finish, 3000);',
+];
+
+/**
+ * Something to select on when the suite joins a hundred others.
+ *
+ * The host, because a run is excluded when a site is down and included when it
+ * is the site being worked on — and there is nothing else in a recording that
+ * a person would filter by. `www.` and the public suffix are noise in a tag.
+ */
+function suiteTag(startUrl: string): string {
+  try {
+    const host = new URL(startUrl).hostname.replace(/^www\./, '');
+    const name = host.split('.').slice(0, -1).pop() ?? host;
+    return name.replace(/[^\w-]/g, '') || 'recorded';
+  } catch {
+    return 'recorded';
+  }
+}
+
+/**
  * Documentation is prose, not test data: collapse the whitespace rather than
  * escaping it, because `\ \ ` in the middle of a sentence reads like a typo.
  * The `${` still has to go — a doc string is expanded like any other cell.
@@ -793,7 +839,7 @@ export function toRobotSuite(rec: Recording, options: SuiteOptions = {}): string
     return row.note ? `# ${row.note}\n${line}` : line;
   });
 
-  const keywords = kws.defs.map((def) =>
+  const keywordDefs = () => kws.defs.map((def) =>
     [
       def.name,
       ...(def.args.length ? [`    [Arguments]    ${def.args.join('    ')}`] : []),
@@ -801,22 +847,15 @@ export function toRobotSuite(rec: Recording, options: SuiteOptions = {}): string
     ].join('\n'),
   );
 
-  return [
-    '*** Settings ***',
-    'Library           SeleniumLibrary',
-    '',
-    '*** Variables ***',
-    ...variables,
-    '',
-    '*** Test Cases ***',
-    testName,
-    `    [Documentation]    ${doc}`,
+  // The browser goes in Suite Setup rather than at the top of the test case.
+  // A suite with one test reads the same either way; a suite someone has added
+  // a second test to does not, and the shape people add to is the shape that
+  // gets added to. Same for the teardown, which was already a [Teardown].
+  const opener = kws.add('Open The Browser', [], [
     `    Open Browser    ${v(startVar)}    ${v(browserVar)}`,
     // Not decoration. A default browser window is small enough that anything
     // below the fold scrolls under a sticky header or footer, and Selenium
     // reports "element click intercepted" from a page that works by hand.
-    // Measured on DemoQA: the same suite fails at a checkbox without this and
-    // passes with it.
     //
     // The recorded size beats maximising, and by a wider margin than it looks:
     // Maximize Browser Window is a no-op in headless Chrome, which leaves the
@@ -825,11 +864,39 @@ export function toRobotSuite(rec: Recording, options: SuiteOptions = {}): string
     rec.window
       ? `    Set Window Size    ${Math.round(rec.window.width)}    ${Math.round(rec.window.height)}`
       : '    Maximize Browser Window',
+    // Then wait for the page to stop rewriting itself.
+    //
+    // A React site hydrates after it loads and replaces the nodes it just
+    // rendered. The first step of a recording then finds its element, reaches
+    // for it, and gets StaleElementReferenceException — two runs in three on
+    // Ant Design's form page, which is as good as broken and reads like the
+    // recording's fault.
+    //
+    // The same measurement the recorder makes while you work: the page has
+    // settled when nothing has changed for half a second.
+    '    Execute Async Javascript',
+    ...PAGE_SETTLES.map((line) => `    ...    ${line}`),
+  ]);
+
+  return [
+    '*** Settings ***',
+    'Library           SeleniumLibrary',
+    `Suite Setup       ${opener}`,
+    'Suite Teardown    Close Browser',
+    '',
+    '*** Variables ***',
+    ...variables,
+    '',
+    '*** Test Cases ***',
+    testName,
+    `    [Documentation]    ${doc}`,
+    // Something to select on. `recorded` is what a team excludes from a curated
+    // run, and the host is what they include when a site goes down.
+    `    [Tags]    recorded    ${suiteTag(rec.startUrl)}`,
     ...calls,
-    '    [Teardown]    Close Browser',
     '',
     '*** Keywords ***',
-    keywords.join('\n\n'),
+    keywordDefs().join('\n\n'),
     '',
   ].join('\n');
 }

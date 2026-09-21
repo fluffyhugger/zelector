@@ -1,5 +1,7 @@
 *** Settings ***
 Library           SeleniumLibrary
+Suite Setup       Open The Browser
+Suite Teardown    Close Browser
 
 *** Variables ***
 # fastest for the browser to resolve
@@ -14,12 +16,10 @@ ${START_URL}            https://example.com/form
 *** Test Cases ***
 Under A Sticky Footer
     [Documentation]    Recorded from https://example.com/form on 2026-09-20.
-    Open Browser    ${START_URL}    ${BROWSER}
-    Set Window Size    1512    944
+    [Tags]    recorded    example
     Fill Address    somewhere
     Click State Select
     Click Submit
-    [Teardown]    Close Browser
 
 *** Keywords ***
 Fill Address
@@ -58,3 +58,23 @@ Click Submit
     Wait Until Element Is Visible    ${SUBMIT}    timeout=10s
     Bring Into View    ${SUBMIT}
     Click Button    ${SUBMIT}
+
+Open The Browser
+    Open Browser    ${START_URL}    ${BROWSER}
+    Set Window Size    1512    944
+    Execute Async Javascript
+    ...    const done = arguments[arguments.length - 1];
+    ...    let timer = 0;
+    ...    const finish = () => {
+    ...    observer.disconnect();
+    ...    clearTimeout(timer);
+    ...    clearTimeout(cap);
+    ...    done(true);
+    ...    };
+    ...    const observer = new MutationObserver(() => {
+    ...    clearTimeout(timer);
+    ...    timer = setTimeout(finish, 500);
+    ...    });
+    ...    observer.observe(document.documentElement, {childList: true, subtree: true, attributes: true});
+    ...    timer = setTimeout(finish, 500);
+    ...    const cap = setTimeout(finish, 3000);

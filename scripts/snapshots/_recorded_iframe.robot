@@ -1,5 +1,7 @@
 *** Settings ***
 Library           SeleniumLibrary
+Suite Setup       Open The Browser
+Suite Teardown    Close Browser
 
 *** Variables ***
 # form field name — tied to the backend contract
@@ -20,13 +22,11 @@ ${START_URL}            https://shop.example.com/checkout
 *** Test Cases ***
 Pay With Card
     [Documentation]    Recorded from https://shop.example.com/checkout on 2026-09-14.
-    Open Browser    ${START_URL}    ${BROWSER}
-    Maximize Browser Window
+    [Tags]    recorded    example
     Fill Card Number    4111111111111111
     Click Pay Now
     Wait Until Element Is Visible    ${RECEIPT}    timeout=15s
     Click Confirm
-    [Teardown]    Close Browser
 
 *** Keywords ***
 Fill Card Number
@@ -48,3 +48,23 @@ Click Confirm
     Wait Until Element Is Visible    ${CONFIRM}    timeout=10s
     Click Button    ${CONFIRM}
     Unselect Frame
+
+Open The Browser
+    Open Browser    ${START_URL}    ${BROWSER}
+    Maximize Browser Window
+    Execute Async Javascript
+    ...    const done = arguments[arguments.length - 1];
+    ...    let timer = 0;
+    ...    const finish = () => {
+    ...    observer.disconnect();
+    ...    clearTimeout(timer);
+    ...    clearTimeout(cap);
+    ...    done(true);
+    ...    };
+    ...    const observer = new MutationObserver(() => {
+    ...    clearTimeout(timer);
+    ...    timer = setTimeout(finish, 500);
+    ...    });
+    ...    observer.observe(document.documentElement, {childList: true, subtree: true, attributes: true});
+    ...    timer = setTimeout(finish, 500);
+    ...    const cap = setTimeout(finish, 3000);

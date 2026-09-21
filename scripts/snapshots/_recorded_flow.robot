@@ -1,5 +1,7 @@
 *** Settings ***
 Library           SeleniumLibrary
+Suite Setup       Open The Browser
+Suite Teardown    Close Browser
 
 *** Variables ***
 # fastest for the browser to resolve
@@ -39,8 +41,7 @@ ${START_URL}            https://shop.example.com/login
 *** Test Cases ***
 Order Is Shipped After Checkout
     [Documentation]    Signs in, filters to shipped orders and checks the total against \${EXPECTED}.
-    Open Browser    ${START_URL}    ${BROWSER}
-    Maximize Browser Window
+    [Tags]    recorded    example
     Fill Username    somebody@example.com
     Fill Password    hunter2\ \ \${NOT_A_VAR}
     Wait Until Element Is Not Visible    ${LOADING_SPINNER}    timeout=15s
@@ -58,7 +59,6 @@ Order Is Shipped After Checkout
     Right Click Order Row
     Go To    ${URL}
     Order Total Text Should Be    ฿1,240.00
-    [Teardown]    Close Browser
 
 *** Keywords ***
 Fill Username
@@ -109,3 +109,23 @@ Order Total Text Should Be
     [Arguments]    ${arg_expected}
     Wait Until Element Is Visible    ${ORDER_TOTAL}    timeout=10s
     Element Text Should Be    ${ORDER_TOTAL}    ${arg_expected}
+
+Open The Browser
+    Open Browser    ${START_URL}    ${BROWSER}
+    Maximize Browser Window
+    Execute Async Javascript
+    ...    const done = arguments[arguments.length - 1];
+    ...    let timer = 0;
+    ...    const finish = () => {
+    ...    observer.disconnect();
+    ...    clearTimeout(timer);
+    ...    clearTimeout(cap);
+    ...    done(true);
+    ...    };
+    ...    const observer = new MutationObserver(() => {
+    ...    clearTimeout(timer);
+    ...    timer = setTimeout(finish, 500);
+    ...    });
+    ...    observer.observe(document.documentElement, {childList: true, subtree: true, attributes: true});
+    ...    timer = setTimeout(finish, 500);
+    ...    const cap = setTimeout(finish, 3000);

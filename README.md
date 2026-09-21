@@ -68,6 +68,12 @@ comes to hang on something it never mentions:
 | a sticky header or ad footer | one `Bring Into View` keyword, called before each click on that page: it waits for the element to hold the same box for two frames *on screen*, then centres it. WebDriver scrolls an element the smallest distance that puts it in the viewport, which parks it against the edge the bar is pinned to — and a banner that is still sliding is displayed long before it is where the click will land |
 | the window it was recorded in | `Set Window Size`, because `Maximize Browser Window` does nothing in headless Chrome, and a page is a different page at 800px: data.go.th folds its navigation into a hamburger and the recorded link is not rendered at all |
 
+The suite it writes opens the browser in `Suite Setup`, tags the test with
+`recorded` and the site it came from, and waits for the page to stop rewriting
+itself before the first step — a React site hydrates after it loads and
+replaces the nodes it just rendered, which took out two runs in three on Ant
+Design's form page.
+
 The recording survives navigation: it lives in the service worker, and the new
 page picks it back up — which also turns the click that navigated into a
 `Wait Until Location Contains`.
