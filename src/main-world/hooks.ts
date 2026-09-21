@@ -13,7 +13,7 @@
  */
 
 /** Closed roots, keyed by host. WeakMap so we never keep detached trees alive. */
-export const closedRoots = new WeakMap<Element, ShadowRoot>();
+const closedRoots = new WeakMap<Element, ShadowRoot>();
 
 export interface CapturedResponse {
   id: number;

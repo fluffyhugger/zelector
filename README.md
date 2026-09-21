@@ -164,6 +164,10 @@ Five passes, each for a kind of mistake the others let through:
   count as. `shrink-0` is a Tailwind utility, `css-1nmdiq5-menu` is a hash
   wearing a label, and `material-price` is a name that merely starts like one
   of Angular Material's counters.
+- **deadcode** — anything exported, defined or imported that nothing reaches.
+  Three times in two days something was written, documented and never called;
+  the first of them shipped, and every recorded alert came out as a click on
+  `css:html`.
 - **navigation** — which navigations a click explains. A link says where it was
   going, and on a slow site that outlives the two-and-a-half-second grace the
   recorder used to judge it by.

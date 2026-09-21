@@ -61,7 +61,7 @@ const FOREIGN = [
   '#honeyContainer', '#metamask-extension', '[id^="loom-"]',
 ].join(',');
 
-export function isForeignNode(target: EventTarget | null): boolean {
+function isForeignNode(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
   try {
     return !!target.closest(FOREIGN);

@@ -951,7 +951,7 @@ function fillsTheScreen(el: Element): boolean {
  */
 let hoverSubjects: string[] | null = null;
 
-export function forgetHoverSelectors(): void {
+function forgetHoverSelectors(): void {
   hoverSubjects = null;
 }
 
@@ -1154,7 +1154,7 @@ const mostProminent = (list: PickResult[]): PickResult | undefined => {
   return byArea.find((p) => !toRobotLocator(p).fragile) ?? byArea[0];
 };
 
-export function inferWait(change: PageChange, ownTarget: PickResult): WaitSpec {
+function inferWait(change: PageChange, ownTarget: PickResult): WaitSpec {
   const timeoutS = timeoutFor(change);
   const requestNote = change.requests.length
     ? `${change.requests[0]!.method} ${short(change.requests[0]!.url)} (${Math.round(change.requests[0]!.durationMs)}ms)`

@@ -249,15 +249,3 @@ function dedupe(list: SelectorCandidate[]): SelectorCandidate[] {
   });
 }
 
-function quoteJs(s: string): string {
-  return `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
-}
-
-/** Used by ancestors() consumers that want the chain rendered for display. */
-export function describeAncestry(el: Element): string {
-  return [el, ...ancestors(el)]
-    .slice(0, 5)
-    .reverse()
-    .map((n) => n.tagName.toLowerCase())
-    .join(' › ');
-}

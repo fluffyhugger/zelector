@@ -40,15 +40,6 @@ export function normalizeText(s: string | null | undefined): string {
   return (s ?? '').replace(/\s+/g, ' ').trim();
 }
 
-/** Direct text of the element, ignoring text inside child elements. */
-export function ownText(el: Element): string {
-  let out = '';
-  for (const node of Array.from(el.childNodes)) {
-    if (node.nodeType === Node.TEXT_NODE) out += node.nodeValue ?? '';
-  }
-  return normalizeText(out);
-}
-
 /** Ancestor chain within the element's own tree, nearest first. */
 export function ancestors(el: Element): Element[] {
   const out: Element[] = [];
@@ -71,32 +62,3 @@ export function nthOfType(el: Element): number {
   return i;
 }
 
-export function hasUniqueTag(el: Element): boolean {
-  return countMatches(el, el.tagName.toLowerCase()) === 1;
-}
-
-/**
- * The <label> text bound to a form control, via `for=`, wrapping, or aria-labelledby.
- * This is what Playwright's getByLabel() matches on.
- */
-export function labelTextFor(el: Element): string | null {
-  const labelledBy = el.getAttribute('aria-labelledby');
-  if (labelledBy) {
-    const parts = labelledBy
-      .split(/\s+/)
-      .map((id) => rootOf(el).querySelector(`#${esc(id)}`))
-      .filter((n): n is Element => !!n)
-      .map((n) => normalizeText(n.textContent));
-    if (parts.length) return parts.join(' ');
-  }
-  if ('labels' in el) {
-    const labels = (el as HTMLInputElement).labels;
-    if (labels?.length) return normalizeText(labels[0]!.textContent);
-  }
-  const id = el.getAttribute('id');
-  if (id) {
-    const label = rootOf(el).querySelector(`label[for=${quote(id)}]`);
-    if (label) return normalizeText(label.textContent);
-  }
-  return null;
-}

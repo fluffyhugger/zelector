@@ -6,7 +6,7 @@
 import type { PickResult } from '@/core/types';
 import type { RecordedStep, Recording } from '@/core/recording';
 
-export const CHANNEL = 'zelector';
+const CHANNEL = 'zelector';
 
 export type PageMessage =
   | { type: 'zelector/ready' }
