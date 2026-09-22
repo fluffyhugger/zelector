@@ -7,6 +7,8 @@ selectors scored on how likely they are to survive the next deploy. A recording
 becomes a Robot Framework suite; a single pick copies as Robot Framework,
 Selenium (Python or Java), CSS, XPath or JSON.
 
+**[Install from the Chrome Web Store](https://chromewebstore.google.com/detail/ligmapkiobcnblnlpomoffmobhfobdkf)**
+
 Free, MIT, no account, no servers — [nothing leaves the browser](PRIVACY.md).
 
 ## Why
