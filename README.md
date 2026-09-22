@@ -115,10 +115,14 @@ pressed on a machine with one, the overlay opens and the picker does not. The
 page listens for `Alt+Z` and `Alt+Shift+Z` either way, so whichever your Chrome
 assigned is the one that works.
 
-Matched on `event.code`, so keyboard layout doesn't matter. If a shortcut does
-nothing, something else holds the keys. Rebind at
-`chrome://extensions/shortcuts`; the popup marks any shortcut Chrome could not
-assign, and its buttons always work.
+Matched on `event.code`, so keyboard layout doesn't matter. Chrome hands out
+shortcuts first come, first served, so another extension can hold one before
+this is installed — the popup shows what Chrome actually assigned, marks
+anything it could not, and offers to open `chrome://extensions/shortcuts`.
+
+An unassigned shortcut is not a dead one. The keys are listened for in the page
+as well, so they work on an ordinary tab regardless; what is lost is the
+browser-level binding, the one that fires while the focus is somewhere else.
 
 There's also a Zelector tab in DevTools with a history of picks.
 

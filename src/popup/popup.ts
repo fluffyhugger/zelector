@@ -27,10 +27,24 @@ const ACTIONS: Record<string, CommandMessage> = {
 
 const note = document.getElementById('note');
 
-function say(text: string, isError = false): void {
+function say(text: string, isError = false, fix = false): void {
   if (!note) return;
   note.textContent = text;
   note.classList.toggle('error', isError);
+
+  // chrome://extensions/shortcuts cannot be linked to — a page may not navigate
+  // to a chrome:// URL — but an extension may open one in a tab, and this is
+  // the only place someone will be standing when they find out they need it.
+  if (!fix) return;
+  const link = document.createElement('button');
+  link.type = 'button';
+  link.className = 'fix';
+  link.textContent = 'Set them';
+  link.addEventListener('click', () => {
+    void chrome.tabs.create({ url: 'chrome://extensions/shortcuts' });
+    window.close();
+  });
+  note.append(' ', link);
 }
 
 /** Alt+Shift+R reads better as the keys people actually press. */
@@ -65,10 +79,15 @@ async function showShortcuts(): Promise<void> {
     }
   }
 
+  // Unassigned is not the same as broken: the keys are listened for in the page
+  // as well, so they work on an ordinary tab whatever Chrome managed to
+  // reserve. What is lost is the browser-level shortcut — the one that works
+  // while the focus is somewhere else.
   say(
     missing
-      ? `${missing} shortcut${missing === 1 ? '' : 's'} could not be assigned — another app holds the keys. The buttons above always work.`
+      ? `${missing} shortcut${missing === 1 ? '' : 's'} could not be assigned — another extension or app got there first. They still work on an ordinary page, and so do the buttons above.`
       : 'Shortcuts work on the page itself, so they keep working even where the toolbar does not.',
+    missing > 0,
     missing > 0,
   );
 }
