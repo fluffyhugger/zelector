@@ -64,7 +64,11 @@ saucedemo, Element Plus, PrimeNG, practicesoftwaretesting and a Thai government
 site all run. Roughly fifteen real bugs came out of doing that, and three of
 them were things every test and every panel in the UI claimed already worked.
 
-<!-- store link -->
+https://chromewebstore.google.com/detail/hnndhflcbplgbgjjocokgfombmdgfedd
+
+<!-- Check that link in a signed-out browser before posting. It served
+     "This item is not available — please sign in" for hours after the listing
+     went public, and a launch post whose link does that is a launch spent. -->
 
 <!-- the GIF goes here: ~/Desktop/record/zelector-demo.gif, 5.1 MB. It plays in
      the thread, which a YouTube link does not. The same cut is on YouTube for
@@ -97,6 +101,28 @@ Same content, shorter, and lead with the measurement rather than the pitch:
 > it is not sure about. MIT, no server. <link> — bug reports very welcome.
 
 ---
+
+## The one-line entries
+
+`MarketSquare/awesome-robotframework` has a `## Tools` section. One line, one
+pull request, and it keeps working long after a forum thread has scrolled away:
+
+```markdown
+- [Zelector](https://github.com/fluffyhugger/zelector) - Chrome recorder that
+  writes Robot Framework suites: infers the waits from what the page did, and
+  scores every locator on whether it will survive a deploy.
+```
+
+## What the forum actually looks like
+
+Read before expecting a flood. The Tools category has a hundred topics, and a
+new tool announcement runs 100-400 views with 0-2 replies — Robot Studio got
+75 views and one reply; two "New Release" posts in a row got none. The category
+that matters is Tools (`/c/tools/19`), not the main Robot Framework one, which
+is where people ask questions and where a tool post reads as an advert.
+
+That is the honest size of this door. The GIF, the awesome list and whatever
+you post where Thai QA people actually are will each be worth as much.
 
 ## After posting
 
