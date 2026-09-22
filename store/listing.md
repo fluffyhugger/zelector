@@ -49,6 +49,21 @@ Developer Tools
 
 ## Detailed description
 
+Two of them. `store/description-short.txt` is the one to paste — 2,000
+characters against the 5,800 below, because nobody reads the second half of a
+store listing and the second half is where the detail was. The long one stays
+because every claim in it is true and the short one is a selection from it: when
+something changes, change the long one and re-cut.
+
+What the short one drops: the SeleniumLibrary detail (locator prefix form,
+Click Button matching on value, Select Radio Button's real signature), the
+paragraph on copying a single selector, and the list of awkward cases reduced
+from twelve lines to one sentence. What it keeps is the two claims that decide
+whether someone installs it, and the privacy paragraph, which is the one people
+actually check.
+
+## Detailed description (long)
+
 ```
 For Robot Framework and Selenium: record what you do on a page and get a suite
 that runs.
