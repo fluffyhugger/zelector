@@ -1,5 +1,72 @@
 # Changelog
 
+## 0.4.0 — 22 September 2026
+
+Submitted over 0.3.0 while that was still in review, because one of these is
+a shortcut that does nothing on a large share of Windows machines and the rest
+are recordings that came out empty.
+
+### Recordings that came out empty
+
+- **A rich text editor recorded nothing at all.** A contenteditable has no
+  value, so the input handler returned before it began, and its element is
+  usually a `<body>` or a `<div>`, so the click that focuses it was dropped as
+  structure. TinyMCE, CKEditor, Quill and ProseMirror all put one on a page.
+  The keystrokes come out as `Press Keys`, taken from the events rather than
+  read back off the element — the element's text is everything it already held.
+- **A drag the browser runs recorded nothing either.** `draggable="true"` hands
+  the gesture to the browser and pointer events stop arriving. It replays
+  through a keyword that dispatches the drag events, because Selenium's
+  `Drag And Drop` is pointer actions and Chrome does not turn those into a
+  native drag.
+
+### Suites that could not replay
+
+- **Alt+Z on Windows belongs to the NVIDIA overlay**, which takes it before
+  Chrome sees it. The picker's shortcut is Alt+Shift+Z there now; macOS keeps
+  Alt+Z. The popup shows what Chrome actually assigned and offers to open the
+  shortcuts page when it could not assign one.
+- **A React page hydrates after it loads** and replaces the nodes it just
+  rendered: the first step found its element, reached for it, and got
+  StaleElementReferenceException — two runs in three on Ant Design's form page.
+  The suite setup waits for the DOM to hold still first.
+- **A shadow chain threw instead of waiting** when the host at its head was not
+  on the page. `?.` at every link, so it times out naming the locator.
+- **A backslash in a host's attribute** survived two of the three readers
+  between the file and the element.
+- **A generated keyword could be called `Click Button`**, which is
+  SeleniumLibrary's own — and Robot resolves a suite's keywords first, so it
+  called itself.
+- **A recorded file upload stopped at "Variable '${FILE_PATH}' not found"**, a
+  message about Robot syntax for a missing file. The name is declared now.
+
+### The shape of the suite
+
+- The browser opens in `Suite Setup`, closes in `Suite Teardown`, and the test
+  case is the flow and nothing else.
+- `[Tags]    recorded    <site>`.
+- A path anchored on something says the two ends rather than every step
+  between: `#form-demo button[type="submit"]` instead of seven levels of
+  nth-of-type.
+
+### Scoring
+
+- A test hook carrying a record id — `data-test="category-01M2ZB0KQP…"` — is
+  marked: the attribute is durable and the value belongs to one seeded
+  database.
+- A path anchored on a component-library counter inherits the counter's
+  warning.
+- An editor is not named after its contents.
+
+### Kept honest
+
+- Playwright, Puppeteer and Cypress export targets removed: nothing here was
+  being done for them, and the store read the list in the description as
+  keyword spam.
+- A pass that fails on code nothing reaches, after three dead things in two
+  days — one of which shipped in 0.2.0.
+- The listing is 2,000 characters rather than 5,800.
+
 ## 0.3.0 — 20 September 2026
 
 Two days of recording real pages rather than reading the code. Every entry
