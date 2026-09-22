@@ -1,5 +1,19 @@
 # Community posts
 
+## The day 0.4.0 goes live
+
+1. Open the listing **signed out** and check it says 0.4.0, and that the
+   description is the short one. Neither is certain until it is on the page.
+2. **LinkedIn** — the draft below, with `~/Desktop/record/zelector-demo.mp4`
+   attached as native video.
+3. **Robot Framework forum**, Tools category. The long post.
+4. Answer whatever comes back, the same day.
+5. **Slack**, and the one-line PR to awesome-robotframework.
+6. **Reddit** the next day, then the Thai groups.
+
+Not all at once: if someone finds something in the first hour, it is better to
+have three channels left to tell than none.
+
 Written for the Robot Framework forum, r/QualityAssurance and the RF Slack —
 the places the first users actually come from. **Nothing here goes up until the
 store listing is live**, because a post that ends in "coming soon" spends the
