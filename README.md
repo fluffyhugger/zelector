@@ -126,6 +126,15 @@ browser-level binding, the one that fires while the focus is somewhere else.
 
 There's also a Zelector tab in DevTools with a history of picks.
 
+## When a recording does not replay
+
+The `.robot` file and the URL are enough to reproduce almost anything — the
+locators say what the recorder saw and the failure says what Robot found
+instead. [Open an issue](https://github.com/fluffyhugger/zelector/issues/new?template=failing-recording.md)
+with both and it can usually be traced in an evening; twenty of the fixes in
+this repo started exactly there, on pages nobody here would have thought to
+try.
+
 ## Robot Framework output
 
 Built against libdoc 6.9.0, so locators use the `strategy:value` prefix form (the
